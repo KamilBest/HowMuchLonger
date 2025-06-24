@@ -2,10 +2,10 @@ package com.icyapps.howmuchlonger.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.icyapps.howmuchlonger.data.model.Event
+import com.icyapps.howmuchlonger.data.model.EventEntity
 
 @Database(
-    entities = [Event::class],
+    entities = [EventEntity::class],
     version = 1,
     exportSchema = false
 )

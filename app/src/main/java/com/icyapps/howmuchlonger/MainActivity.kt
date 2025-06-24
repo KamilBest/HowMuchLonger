@@ -1,47 +1,54 @@
 package com.icyapps.howmuchlonger
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
+import com.icyapps.howmuchlonger.ui.navigation.AppNavigator
+import com.icyapps.howmuchlonger.ui.navigation.Routes
+import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventScreen
+import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListScreen
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             HowMuchLongerTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                val backStack = remember { mutableStateListOf<Routes>(Routes.EventsList) }
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    entryProvider = { key ->
+                        when (key) {
+                            is Routes.EventsList -> NavEntry(key) {
+                                EventListScreen(
+                                    onNavigateToAddEvent = {
+                                        Log.d("AppNavigator", "onNavigateToAddEvent")
+                                        backStack.add(Routes.AddEditEvent)
+                                    }
+                                )
+                            }
+
+                            is Routes.AddEditEvent -> NavEntry(key) {
+                                AddEventScreen(
+                                    onNavigateBack = {
+                                        backStack.removeLastOrNull()
+                                    }
+                                )
+                            }
+                        }
+                    }
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    HowMuchLongerTheme {
-        Greeting("Android")
     }
 }
