@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import com.icyapps.howmuchlonger.ui.navigation.AppNavigator
 import com.icyapps.howmuchlonger.ui.navigation.Routes
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventScreen
 import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListScreen
