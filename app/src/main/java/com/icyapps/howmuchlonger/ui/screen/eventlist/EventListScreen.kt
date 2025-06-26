@@ -37,9 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
+import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
+import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,15 +58,9 @@ fun EventListScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Upcoming Events") }
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { onNavigateToAddEvent() }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Event")
-            }
+        topBar = { EventListTopBar() },
+        floatingActionButton = { 
+            AddEventButton(onClick = onNavigateToAddEvent)
         }
     ) { paddingValues ->
         Box(
@@ -71,58 +68,106 @@ fun EventListScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            val error = state.error
+            EventListContent(
+                state = state,
+                onDeleteEvent = { eventId ->
+                    viewModel.processIntent(EventListIntent.DeleteEvent(eventId))
+                },
+                onEditEvent = onNavigateToEditEvent
+            )
+        }
+    }
+}
 
-            when {
-                state.isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventListTopBar() {
+    TopAppBar(
+        title = { Text("Upcoming Events") }
+    )
+}
 
-                error != null -> {
-                    Text(
-                        text = error,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp)
-                    )
-                }
+@Composable
+private fun AddEventButton(onClick: () -> Unit) {
+    FloatingActionButton(onClick = onClick) {
+        Icon(Icons.Default.Add, contentDescription = "Add Event")
+    }
+}
 
-                state.eventEntities.isEmpty() -> {
-                    Text(
-                        text = "No events yet. Add your first event!",
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(16.dp)
-                    )
-                }
-
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(state.eventEntities) { event ->
-                            EventItem(
-                                event = event,
-                                onDelete = {
-                                    viewModel.processIntent(
-                                        EventListIntent.DeleteEvent(
-                                            event.id
-                                        )
-                                    )
-                                },
-                                onEdit = {
-                                    onNavigateToEditEvent(event.id)
-                                }
-                            )
-                        }
-                    }
-                }
+@Composable
+private fun EventListContent(
+    state: EventListState,
+    onDeleteEvent: (Long) -> Unit,
+    onEditEvent: (Long) -> Unit
+) {
+    when (state) {
+        is EventListState.Loading -> LoadingIndicator()
+        is EventListState.Error -> ErrorMessage(message = state.message)
+        is EventListState.Success -> {
+            if (state.events.isEmpty()) {
+                EmptyListMessage()
+            } else {
+                EventsList(
+                    events = state.events,
+                    onDeleteEvent = onDeleteEvent,
+                    onEditEvent = onEditEvent
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun LoadingIndicator() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        CircularProgressIndicator(
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+private fun ErrorMessage(message: String) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = message,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmptyListMessage() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = "No events yet. Add your first event!",
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun EventsList(
+    events: List<Event>,
+    onDeleteEvent: (Long) -> Unit,
+    onEditEvent: (Long) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(events) { event ->
+            EventItem(
+                event = event,
+                onDelete = { onDeleteEvent(event.id) },
+                onEdit = { onEditEvent(event.id) }
+            )
         }
     }
 }
@@ -141,7 +186,7 @@ private fun EventItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { onEdit() }
+        onClick = onEdit
     ) {
         Row(
             modifier = Modifier
@@ -179,17 +224,85 @@ private fun EventItem(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+private fun EventListScreenPreview() {
+    HowMuchLongerTheme {
+        EventListScreen(
+            onNavigateToAddEvent = {},
+            onNavigateToEditEvent = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EventsListPreview() {
+    HowMuchLongerTheme {
+        EventsList(
+            events = listOf(
+                Event(
+                    id = 1L,
+                    name = "Birthday Party",
+                    description = "Annual celebration with friends and family",
+                    date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(15)
+                ),
+                Event(
+                    id = 2L,
+                    name = "Dentist Appointment",
+                    description = "Regular checkup",
+                    date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
+                ),
+                Event(
+                    id = 3L,
+                    name = "Project Deadline",
+                    description = "Final submission for the quarterly project",
+                    date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(30)
+                )
+            ),
+            onDeleteEvent = {},
+            onEditEvent = {}
+        )
+    }
+}
+
 @Preview
 @Composable
 private fun EventItemPreview() {
-    EventItem(
-        event = Event(
-            id = 1L,
-            name = "Sample Event",
-            description = "This is a sample event description.",
-            date = System.currentTimeMillis()
-        ),
-        onDelete = {},
-        onEdit = {}
-    )
+    HowMuchLongerTheme {
+        EventItem(
+            event = Event(
+                id = 1L,
+                name = "Birthday Party",
+                description = "Annual celebration with friends and family",
+                date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(15)
+            ),
+            onDelete = {},
+            onEdit = {}
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun EmptyListPreview() {
+    HowMuchLongerTheme {
+        EmptyListMessage()
+    }
+}
+
+@Preview
+@Composable
+private fun ErrorMessagePreview() {
+    HowMuchLongerTheme {
+        ErrorMessage(message = "Failed to load events. Please try again.")
+    }
+}
+
+@Preview
+@Composable
+private fun LoadingIndicatorPreview() {
+    HowMuchLongerTheme {
+        LoadingIndicator()
+    }
 }
