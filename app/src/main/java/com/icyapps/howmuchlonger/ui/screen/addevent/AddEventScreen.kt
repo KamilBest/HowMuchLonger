@@ -36,9 +36,16 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEventScreen(
+    eventId: Long? = null,
     onNavigateBack: () -> Unit,
     viewModel: AddEventViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(eventId) {
+        if (eventId != null) {
+            viewModel.setEventId(eventId)
+        }
+    }
+
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(state.isSuccess) {
@@ -132,5 +139,8 @@ fun AddEventScreen(
 @Preview
 @Composable
 fun AddEventScreenPreview() {
-    AddEventScreen(onNavigateBack = {})
+    AddEventScreen(
+        eventId = null,
+        onNavigateBack = {}
+    )
 }

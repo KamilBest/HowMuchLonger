@@ -45,6 +45,7 @@ import java.util.Locale
 @Composable
 fun EventListScreen(
     onNavigateToAddEvent: () -> Unit,
+    onNavigateToEditEvent: (Long) -> Unit = {},
     viewModel: EventListViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -113,6 +114,9 @@ fun EventListScreen(
                                             event.id
                                         )
                                     )
+                                },
+                                onEdit = {
+                                    onNavigateToEditEvent(event.id)
                                 }
                             )
                         }
@@ -127,7 +131,8 @@ fun EventListScreen(
 @Composable
 private fun EventItem(
     event: Event,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit = {}
 ) {
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
     val formattedDate = remember(event.date) {
@@ -136,7 +141,7 @@ private fun EventItem(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        onClick = { /* TODO: Navigate to event details */ }
+        onClick = { onEdit() }
     ) {
         Row(
             modifier = Modifier
@@ -184,6 +189,7 @@ private fun EventItemPreview() {
             description = "This is a sample event description.",
             date = System.currentTimeMillis()
         ),
-        onDelete = {}
+        onDelete = {},
+        onEdit = {}
     )
 }

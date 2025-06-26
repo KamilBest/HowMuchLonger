@@ -1,8 +1,12 @@
 package com.icyapps.howmuchlonger.ui.screen.addevent
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.domain.usecase.AddEventUseCase
+import com.icyapps.howmuchlonger.domain.usecase.GetEventByIdUseCase
+import com.icyapps.howmuchlonger.domain.usecase.UpdateEventUseCase
 import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
 import com.icyapps.howmuchlonger.ui.screen.addevent.model.AddEventState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,11 +19,48 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AddEventViewModel @Inject constructor(
-    private val addEventUseCase: AddEventUseCase
+    private val addEventUseCase: AddEventUseCase,
+    private val getEventByIdUseCase: GetEventByIdUseCase,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddEventState())
     val state: StateFlow<AddEventState> = _state.asStateFlow()
+
+    init {
+        val eventId = savedStateHandle.get<Long?>("eventId")
+        if (eventId != null) {
+            loadEvent(eventId)
+        }
+    }
+
+    fun setEventId(eventId: Long) {
+        loadEvent(eventId)
+    }
+
+    private fun loadEvent(eventId: Long) {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            try {
+                val event = getEventByIdUseCase(eventId)
+                if (event != null) {
+                    _state.update { 
+                        it.copy(
+                            eventId = event.id,
+                            title = event.name,
+                            description = event.description,
+                            date = event.date,
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    _state.update { it.copy(error = "Event not found", isLoading = false) }
+                }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message, isLoading = false) }
+            }
+        }
+    }
 
     fun processIntent(intent: AddEventIntent) {
         when (intent) {

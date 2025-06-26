@@ -21,13 +21,18 @@ fun AppNavigator() {
                     EventListScreen(
                         onNavigateToAddEvent = {
                             Log.d("AppNavigator", "onNavigateToAddEvent")
-                            backStack.add(Routes.AddEditEvent)
+                            backStack.add(Routes.AddEditEvent())
+                        },
+                        onNavigateToEditEvent = { eventId ->
+                            Log.d("AppNavigator", "onNavigateToEditEvent: $eventId")
+                            backStack.add(Routes.AddEditEvent(eventId))
                         }
                     )
                 }
 
                 is Routes.AddEditEvent -> NavEntry(key) {
                     AddEventScreen(
+                        eventId = key.eventId,
                         onNavigateBack = {
                             backStack.removeLastOrNull()
                         }
