@@ -8,32 +8,32 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventScreen
 import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListScreen
-//
-//@Composable
-//fun AppNavigator() {
-//    val backStack = remember { mutableStateListOf<Routes>(Routes.EventsList) }
-//    NavDisplay(
-//        backStack = backStack,
-//        onBack = { backStack.removeLastOrNull() },
-//        entryProvider = { key ->
-//            when (key) {
-//                is Routes.EventsList -> NavEntry(key) {
-//                    EventListScreen(
-//                        onNavigateToAddEvent = {
-//                            Log.d("AppNavigator", "onNavigateToAddEvent")
-//                            backStack.add(Routes.AddEditEvent)
-//                        }
-//                    )
-//                }
-//
-//                is Routes.AddEditEvent -> NavEntry(key) {
-//                    AddEventScreen(
-//                        onNavigateBack = {
-//                            backStack.removeLastOrNull()
-//                        }
-//                    )
-//                }
-//            }
-//        }
-//    )
-//}
+
+@Composable
+fun AppNavigator() {
+    val backStack = remember { mutableStateListOf<Routes>(Routes.EventsList) }
+    NavDisplay(
+        backStack = backStack,
+        onBack = { backStack.removeLastOrNull() },
+        entryProvider = { key ->
+            when (key) {
+                is Routes.EventsList -> NavEntry(key) {
+                    EventListScreen(
+                        onNavigateToAddEvent = {
+                            Log.d("AppNavigator", "onNavigateToAddEvent")
+                            backStack.add(Routes.AddEditEvent)
+                        }
+                    )
+                }
+
+                is Routes.AddEditEvent -> NavEntry(key) {
+                    AddEventScreen(
+                        onNavigateBack = {
+                            backStack.removeLastOrNull()
+                        }
+                    )
+                }
+            }
+        }
+    )
+}

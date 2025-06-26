@@ -60,7 +60,7 @@ fun EventListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { onNavigateToAddEvent }) {
+            FloatingActionButton(onClick = { onNavigateToAddEvent() }) {
                 Icon(Icons.Default.Add, contentDescription = "Add Event")
             }
         }
