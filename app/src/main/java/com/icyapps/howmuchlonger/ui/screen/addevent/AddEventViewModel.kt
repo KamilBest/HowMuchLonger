@@ -21,6 +21,7 @@ import javax.inject.Inject
 class AddEventViewModel @Inject constructor(
     private val addEventUseCase: AddEventUseCase,
     private val getEventByIdUseCase: GetEventByIdUseCase,
+    private val updateEventUseCase: UpdateEventUseCase,
     private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -87,11 +88,24 @@ class AddEventViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
             try {
-                addEventUseCase(
-                    name = state.value.title,
-                    description = state.value.description,
-                    date = state.value.date
-                )
+                val currentState = state.value
+                if (currentState.eventId != null) {
+                    // Update existing event
+                    val event = Event(
+                        id = currentState.eventId,
+                        name = currentState.title,
+                        description = currentState.description,
+                        date = currentState.date
+                    )
+                    updateEventUseCase(event)
+                } else {
+                    // Create new event
+                    addEventUseCase(
+                        name = currentState.title,
+                        description = currentState.description,
+                        date = currentState.date
+                    )
+                }
                 _state.update { it.copy(isLoading = false, isSuccess = true) }
             } catch (e: Exception) {
                 _state.update { it.copy(error = e.message, isLoading = false) }

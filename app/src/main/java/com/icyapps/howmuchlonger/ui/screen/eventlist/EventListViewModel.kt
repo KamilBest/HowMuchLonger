@@ -2,6 +2,7 @@ package com.icyapps.howmuchlonger.ui.screen.eventlist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.icyapps.howmuchlonger.domain.usecase.DeleteEventUseCase
 import com.icyapps.howmuchlonger.domain.usecase.GetEventsUseCase
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class EventListViewModel @Inject constructor(
-    private val getEventsUseCase: GetEventsUseCase
+    private val getEventsUseCase: GetEventsUseCase,
+    private val deleteEventUseCase: DeleteEventUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EventListState())
@@ -43,7 +45,15 @@ class EventListViewModel @Inject constructor(
     }
 
     private fun deleteEvent(eventId: Long) {
-        // TODO: Implement delete event
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true) }
+            try {
+                deleteEventUseCase(eventId)
+                loadEvents() // Reload events after deletion
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message, isLoading = false) }
+            }
+        }
     }
 
     private fun navigateToAddEvent() {
