@@ -6,7 +6,8 @@ sealed class EventListState {
     object Loading : EventListState()
 
     data class Success(
-        val events: List<Event> = emptyList()
+        val upcomingEvents: List<Event> = emptyList(),
+        val pastEvents: List<Event> = emptyList()
     ) : EventListState()
 
     data class Error(

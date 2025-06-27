@@ -106,11 +106,12 @@ private fun EventListContent(
         is EventListState.Loading -> LoadingIndicator()
         is EventListState.Error -> ErrorMessage(message = state.message)
         is EventListState.Success -> {
-            if (state.events.isEmpty()) {
+            if (state.upcomingEvents.isEmpty() && state.pastEvents.isEmpty()) {
                 EmptyListMessage()
             } else {
                 EventsList(
-                    events = state.events,
+                    upcomingEvents = state.upcomingEvents,
+                    pastEvents = state.pastEvents,
                     onDeleteEvent = onDeleteEvent,
                     onEditEvent = onEditEvent
                 )
@@ -155,7 +156,8 @@ private fun EmptyListMessage() {
 
 @Composable
 private fun EventsList(
-    events: List<Event>,
+    upcomingEvents: List<Event>,
+    pastEvents: List<Event>,
     onDeleteEvent: (Long) -> Unit,
     onEditEvent: (Long) -> Unit
 ) {
@@ -164,12 +166,38 @@ private fun EventsList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(events) { event ->
-            EventItem(
-                event = event,
-                onDelete = { onDeleteEvent(event.id) },
-                onEdit = { onEditEvent(event.id) }
-            )
+        if (upcomingEvents.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Upcoming:",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            items(upcomingEvents) { event ->
+                EventItem(
+                    event = event,
+                    onDelete = { onDeleteEvent(event.id) },
+                    onEdit = { onEditEvent(event.id) }
+                )
+            }
+        }
+
+        if (pastEvents.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Past events:",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                )
+            }
+            items(pastEvents) { event ->
+                EventItem(
+                    event = event,
+                    onDelete = { onDeleteEvent(event.id) },
+                    onEdit = { onEditEvent(event.id) }
+                )
+            }
         }
     }
 }
@@ -235,7 +263,7 @@ private fun EventListScreenPreview() {
 private fun EventsListPreview() {
     HowMuchLongerTheme {
         EventsList(
-            events = listOf(
+            upcomingEvents = listOf(
                 Event(
                     id = 1L,
                     name = "Birthday Party",
@@ -247,12 +275,14 @@ private fun EventsListPreview() {
                     name = "Dentist Appointment",
                     description = "Regular checkup",
                     date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
-                ),
+                )
+            ),
+            pastEvents = listOf(
                 Event(
                     id = 3L,
                     name = "Project Deadline",
                     description = "Final submission for the quarterly project",
-                    date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(30)
+                    date = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)
                 )
             ),
             onDeleteEvent = {},

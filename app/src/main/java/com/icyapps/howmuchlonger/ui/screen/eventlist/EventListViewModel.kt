@@ -34,7 +34,14 @@ class EventListViewModel @Inject constructor(
             _state.value = EventListState.Loading
             try {
                 getEventsUseCase().collect { events ->
-                    _state.value = EventListState.Success(events)
+                    val currentTime = System.currentTimeMillis()
+                    val (upcoming, past) = events.partition { event -> 
+                        event.date > currentTime 
+                    }
+                    _state.value = EventListState.Success(
+                        upcomingEvents = upcoming,
+                        pastEvents = past
+                    )
                 }
             } catch (e: Exception) {
                 _state.value = EventListState.Error(e.message ?: "Unknown error")
