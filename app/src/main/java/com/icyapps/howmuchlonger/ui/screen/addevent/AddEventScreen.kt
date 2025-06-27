@@ -2,15 +2,23 @@ package com.icyapps.howmuchlonger.ui.screen.addevent
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -18,12 +26,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import android.util.Log
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,11 +64,22 @@ fun AddEventScreen(
         }
     }
 
+    // Reset success state when entering the screen to prevent unwanted navigation
+    LaunchedEffect(Unit) {
+        viewModel.resetSuccessState()
+    }
+
     val state by viewModel.state.collectAsState()
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
+            Log.d("AddEventScreen", "Event saved successfully, preparing to navigate back")
+            // Add a small delay to avoid conflicts with any ongoing animations
+            delay(300)
+            Log.d("AddEventScreen", "Navigating back after successful save")
             onNavigateBack()
+            // Reset success state to avoid navigation issues when returning to this screen
+            viewModel.resetSuccessState()
         }
     }
 
@@ -70,6 +96,11 @@ fun AddEventScreen(
             onTitleChange = { viewModel.processIntent(AddEventIntent.UpdateTitle(it)) },
             onDescriptionChange = { viewModel.processIntent(AddEventIntent.UpdateDescription(it)) },
             onDateChange = { viewModel.processIntent(AddEventIntent.UpdateDate(it)) },
+            onToggleIncludeTime = { viewModel.processIntent(AddEventIntent.ToggleIncludeTime(it)) },
+            onShowDatePicker = { viewModel.processIntent(AddEventIntent.ShowDatePicker) },
+            onHideDatePicker = { viewModel.processIntent(AddEventIntent.HideDatePicker) },
+            onShowTimePicker = { viewModel.processIntent(AddEventIntent.ShowTimePicker) },
+            onHideTimePicker = { viewModel.processIntent(AddEventIntent.HideTimePicker) },
             onSaveClick = { viewModel.processIntent(AddEventIntent.SaveEvent) },
             modifier = Modifier
                 .fillMaxSize()
@@ -101,6 +132,11 @@ private fun AddEventForm(
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onDateChange: (Long) -> Unit,
+    onToggleIncludeTime: (Boolean) -> Unit,
+    onShowDatePicker: () -> Unit,
+    onHideDatePicker: () -> Unit,
+    onShowTimePicker: () -> Unit,
+    onHideTimePicker: () -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -123,6 +159,14 @@ private fun AddEventForm(
         EventDateField(
             date = state.date,
             onDateSelected = onDateChange,
+            includeTime = state.includeTime,
+            showDatePicker = state.showDatePicker,
+            showTimePicker = state.showTimePicker,
+            onToggleIncludeTime = onToggleIncludeTime,
+            onShowDatePicker = onShowDatePicker,
+            onHideDatePicker = onHideDatePicker,
+            onShowTimePicker = onShowTimePicker,
+            onHideTimePicker = onHideTimePicker,
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -173,31 +217,144 @@ private fun EventDescriptionField(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EventDateField(
     date: Long,
     onDateSelected: (Long) -> Unit,
+    includeTime: Boolean = true,
+    showDatePicker: Boolean = false,
+    showTimePicker: Boolean = false,
+    onToggleIncludeTime: (Boolean) -> Unit = {},
+    onShowDatePicker: () -> Unit = {},
+    onHideDatePicker: () -> Unit = {},
+    onShowTimePicker: () -> Unit = {},
+    onHideTimePicker: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
-    val formattedDate = remember(date) {
+    val dateFormat = remember(includeTime) { 
+        if (includeTime) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+        else SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+    }
+
+    val formattedDate = remember(date, includeTime) {
         dateFormat.format(Date(date))
     }
 
-    OutlinedTextField(
-        value = formattedDate,
-        onValueChange = { },
-        label = { Text("Date and Time") },
-        modifier = modifier,
-        readOnly = true,
-        trailingIcon = {
-            IconButton(onClick = {
-                // TODO: Show date picker
-            }) {
-                Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = formattedDate,
+            onValueChange = { },
+            label = { Text(if (includeTime) "Date and Time" else "Date") },
+            modifier = Modifier.fillMaxWidth(),
+            readOnly = true,
+            trailingIcon = {
+                Row {
+                    IconButton(onClick = onShowDatePicker) {
+                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                    }
+                    if (includeTime) {
+                        IconButton(onClick = onShowTimePicker) {
+                            Icon(Icons.Default.Edit, contentDescription = "Select Time")
+                        }
+                    }
+                }
             }
+        )
+
+        Row(
+            modifier = Modifier.padding(top = 8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = includeTime,
+                onCheckedChange = onToggleIncludeTime
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Include time")
         }
-    )
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = date)
+
+        DatePickerDialog(
+            onDismissRequest = onHideDatePicker,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { selectedDate ->
+                            // Preserve the time part if includeTime is true
+                            val newDate = if (includeTime) {
+                                val calendar = java.util.Calendar.getInstance()
+                                calendar.timeInMillis = date
+                                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+                                val minute = calendar.get(java.util.Calendar.MINUTE)
+
+                                calendar.timeInMillis = selectedDate
+                                calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
+                                calendar.set(java.util.Calendar.MINUTE, minute)
+                                calendar.timeInMillis
+                            } else {
+                                selectedDate
+                            }
+                            onDateSelected(newDate)
+                        }
+                        onHideDatePicker()
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onHideDatePicker) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showTimePicker && includeTime) {
+        val calendar = java.util.Calendar.getInstance().apply {
+            timeInMillis = date
+        }
+        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(java.util.Calendar.MINUTE)
+
+        val timePickerState = rememberTimePickerState(
+            initialHour = hour,
+            initialMinute = minute
+        )
+
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = onHideTimePicker,
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val newCalendar = java.util.Calendar.getInstance().apply {
+                            timeInMillis = date
+                            set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
+                            set(java.util.Calendar.MINUTE, timePickerState.minute)
+                        }
+                        onDateSelected(newCalendar.timeInMillis)
+                        onHideTimePicker()
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onHideTimePicker) {
+                    Text("Cancel")
+                }
+            },
+            text = {
+                TimePicker(state = timePickerState)
+            }
+        )
+    }
 }
 
 @Composable
@@ -270,6 +427,11 @@ fun AddEventFormPreview() {
             onTitleChange = {},
             onDescriptionChange = {},
             onDateChange = {},
+            onToggleIncludeTime = {},
+            onShowDatePicker = {},
+            onHideDatePicker = {},
+            onShowTimePicker = {},
+            onHideTimePicker = {},
             onSaveClick = {},
             modifier = Modifier.padding(16.dp)
         )

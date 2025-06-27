@@ -36,10 +36,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.icyapps.howmuchlonger.domain.model.Event
+import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.text.SimpleDateFormat
+import java.time.LocalDateTime
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -179,11 +181,6 @@ private fun EventItem(
     onDelete: () -> Unit,
     onEdit: () -> Unit = {}
 ) {
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()) }
-    val formattedDate = remember(event.date) {
-        dateFormat.format(Date(event.date))
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         onClick = onEdit
@@ -208,10 +205,8 @@ private fun EventItem(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.bodySmall
-                )
+
+                CountdownText(targetTimeInMs = event.date)
             }
             IconButton(onClick = onDelete) {
                 Icon(
@@ -275,7 +270,7 @@ private fun EventItemPreview() {
                 id = 1L,
                 name = "Birthday Party",
                 description = "Annual celebration with friends and family",
-                date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(15)
+                date = System.currentTimeMillis()
             ),
             onDelete = {},
             onEdit = {}

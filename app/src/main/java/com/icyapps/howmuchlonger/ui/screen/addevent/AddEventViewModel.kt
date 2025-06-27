@@ -28,6 +28,11 @@ class AddEventViewModel @Inject constructor(
     private val _state = MutableStateFlow(AddEventState())
     val state: StateFlow<AddEventState> = _state.asStateFlow()
 
+    // Reset success state to avoid navigation issues when returning to this screen
+    fun resetSuccessState() {
+        _state.update { it.copy(isSuccess = false) }
+    }
+
     init {
         val eventId = savedStateHandle.get<Long?>("eventId")
         if (eventId != null) {
@@ -68,6 +73,11 @@ class AddEventViewModel @Inject constructor(
             is AddEventIntent.UpdateTitle -> updateTitle(intent.title)
             is AddEventIntent.UpdateDescription -> updateDescription(intent.description)
             is AddEventIntent.UpdateDate -> updateDate(intent.date)
+            is AddEventIntent.ToggleIncludeTime -> toggleIncludeTime(intent.include)
+            is AddEventIntent.ShowDatePicker -> showDatePicker()
+            is AddEventIntent.HideDatePicker -> hideDatePicker()
+            is AddEventIntent.ShowTimePicker -> showTimePicker()
+            is AddEventIntent.HideTimePicker -> hideTimePicker()
             is AddEventIntent.SaveEvent -> saveEvent()
         }
     }
@@ -84,9 +94,29 @@ class AddEventViewModel @Inject constructor(
         _state.update { it.copy(date = date) }
     }
 
+    private fun toggleIncludeTime(include: Boolean) {
+        _state.update { it.copy(includeTime = include) }
+    }
+
+    private fun showDatePicker() {
+        _state.update { it.copy(showDatePicker = true) }
+    }
+
+    private fun hideDatePicker() {
+        _state.update { it.copy(showDatePicker = false) }
+    }
+
+    private fun showTimePicker() {
+        _state.update { it.copy(showTimePicker = true) }
+    }
+
+    private fun hideTimePicker() {
+        _state.update { it.copy(showTimePicker = false) }
+    }
+
     private fun saveEvent() {
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+            _state.update { it.copy(isLoading = true, error = null) }
             try {
                 val currentState = state.value
                 if (currentState.eventId != null) {
@@ -98,17 +128,19 @@ class AddEventViewModel @Inject constructor(
                         date = currentState.date
                     )
                     updateEventUseCase(event)
+                    _state.update { it.copy(isLoading = false, isSuccess = true) }
                 } else {
                     // Create new event
-                    addEventUseCase(
+                    val newEventId = addEventUseCase(
                         name = currentState.title,
                         description = currentState.description,
                         date = currentState.date
                     )
+                    // Update state with the new event ID
+                    _state.update { it.copy(eventId = newEventId, isLoading = false, isSuccess = true) }
                 }
-                _state.update { it.copy(isLoading = false, isSuccess = true) }
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.message, isLoading = false) }
+                _state.update { it.copy(error = e.message ?: "Unknown error occurred", isLoading = false) }
             }
         }
     }
