@@ -10,5 +10,5 @@ data class AddEventState(
     val showTimePicker: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isSuccess: Boolean = false
+    val saveCompleted: Boolean = false
 )

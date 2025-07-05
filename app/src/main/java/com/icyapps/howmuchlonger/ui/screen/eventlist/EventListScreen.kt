@@ -51,12 +51,11 @@ import java.util.concurrent.TimeUnit
 fun EventListScreen(
     onNavigateToAddEvent: () -> Unit,
     onNavigateToEditEvent: (Long) -> Unit = {},
-    viewModel: EventListViewModel = hiltViewModel()
+    state: EventListState,
+    onProcessIntent: (EventListIntent) -> Unit
 ) {
-    val state by viewModel.state.collectAsState()
-
     LaunchedEffect(Unit) {
-        viewModel.processIntent(EventListIntent.LoadEvents)
+        onProcessIntent(EventListIntent.LoadEvents)
     }
 
     Scaffold(
@@ -73,7 +72,7 @@ fun EventListScreen(
             EventListContent(
                 state = state,
                 onDeleteEvent = { eventId ->
-                    viewModel.processIntent(EventListIntent.DeleteEvent(eventId))
+                    onProcessIntent(EventListIntent.DeleteEvent(eventId))
                 },
                 onEditEvent = onNavigateToEditEvent
             )
@@ -253,7 +252,9 @@ private fun EventListScreenPreview() {
     HowMuchLongerTheme {
         EventListScreen(
             onNavigateToAddEvent = {},
-            onNavigateToEditEvent = {}
+            onNavigateToEditEvent = {},
+            state = EventListState.Success(),
+            onProcessIntent = {}
         )
     }
 }

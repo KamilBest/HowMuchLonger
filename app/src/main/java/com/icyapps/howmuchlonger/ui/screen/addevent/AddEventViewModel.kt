@@ -28,20 +28,15 @@ class AddEventViewModel @Inject constructor(
     private val _state = MutableStateFlow(AddEventState())
     val state: StateFlow<AddEventState> = _state.asStateFlow()
 
-    // Reset success state to avoid navigation issues when returning to this screen
-    fun resetSuccessState() {
-        _state.update { it.copy(isSuccess = false) }
-    }
 
     init {
-        val eventId = savedStateHandle.get<Long?>("eventId")
-        if (eventId != null) {
-            loadEvent(eventId)
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<Long?>("eventId", null).collect { eventId ->
+                if (eventId != null) {
+                    loadEvent(eventId)
+                }
+            }
         }
-    }
-
-    fun setEventId(eventId: Long) {
-        loadEvent(eventId)
     }
 
     private fun loadEvent(eventId: Long) {
@@ -50,7 +45,7 @@ class AddEventViewModel @Inject constructor(
             try {
                 val event = getEventByIdUseCase(eventId)
                 if (event != null) {
-                    _state.update { 
+                    _state.update {
                         it.copy(
                             eventId = event.id,
                             title = event.name,
@@ -79,7 +74,12 @@ class AddEventViewModel @Inject constructor(
             is AddEventIntent.ShowTimePicker -> showTimePicker()
             is AddEventIntent.HideTimePicker -> hideTimePicker()
             is AddEventIntent.SaveEvent -> saveEvent()
+            is AddEventIntent.NavigateBack -> resetAddEventState()
         }
+    }
+
+    private fun resetAddEventState() {
+        _state.update { AddEventState() }
     }
 
     private fun updateTitle(title: String) {
@@ -128,7 +128,8 @@ class AddEventViewModel @Inject constructor(
                         date = currentState.date
                     )
                     updateEventUseCase(event)
-                    _state.update { it.copy(isLoading = false, isSuccess = true) }
+                    // Update state and set saveCompleted flag to trigger navigation
+                    _state.update { it.copy(isLoading = false, saveCompleted = true) }
                 } else {
                     // Create new event
                     val newEventId = addEventUseCase(
@@ -136,11 +137,22 @@ class AddEventViewModel @Inject constructor(
                         description = currentState.description,
                         date = currentState.date
                     )
-                    // Update state with the new event ID
-                    _state.update { it.copy(eventId = newEventId, isLoading = false, isSuccess = true) }
+                    // Update state with the new event ID and set saveCompleted flag to trigger navigation
+                    _state.update {
+                        it.copy(
+                            eventId = newEventId,
+                            isLoading = false,
+                            saveCompleted = true
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.message ?: "Unknown error occurred", isLoading = false) }
+                _state.update {
+                    it.copy(
+                        error = e.message ?: "Unknown error occurred",
+                        isLoading = false
+                    )
+                }
             }
         }
     }

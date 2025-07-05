@@ -54,54 +54,38 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEventScreen(
-    eventId: Long? = null,
     onNavigateBack: () -> Unit,
-    viewModel: AddEventViewModel = hiltViewModel()
+    state: AddEventState,
+    onProcessIntent: (AddEventIntent) -> Unit
 ) {
-    LaunchedEffect(eventId) {
-        if (eventId != null) {
-            viewModel.setEventId(eventId)
-        }
-    }
-
-    // Reset success state when entering the screen to prevent unwanted navigation
-    LaunchedEffect(Unit) {
-        viewModel.resetSuccessState()
-    }
-
-    val state by viewModel.state.collectAsState()
-
-    LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) {
-            Log.d("AddEventScreen", "Event saved successfully, preparing to navigate back")
-            // Add a small delay to avoid conflicts with any ongoing animations
-            delay(300)
-            Log.d("AddEventScreen", "Navigating back after successful save")
+    // Observe saveCompleted state and handle navigation
+    LaunchedEffect(state.saveCompleted) {
+        if (state.saveCompleted) {
             onNavigateBack()
-            // Reset success state to avoid navigation issues when returning to this screen
-            viewModel.resetSuccessState()
+            // Reset the saveCompleted flag
+            onProcessIntent(AddEventIntent.NavigateBack)
         }
     }
 
     Scaffold(
         topBar = {
             AddEventTopBar(
-                isEditMode = eventId != null,
+                isEditMode = state.eventId != null,
                 onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->
         AddEventForm(
             state = state,
-            onTitleChange = { viewModel.processIntent(AddEventIntent.UpdateTitle(it)) },
-            onDescriptionChange = { viewModel.processIntent(AddEventIntent.UpdateDescription(it)) },
-            onDateChange = { viewModel.processIntent(AddEventIntent.UpdateDate(it)) },
-            onToggleIncludeTime = { viewModel.processIntent(AddEventIntent.ToggleIncludeTime(it)) },
-            onShowDatePicker = { viewModel.processIntent(AddEventIntent.ShowDatePicker) },
-            onHideDatePicker = { viewModel.processIntent(AddEventIntent.HideDatePicker) },
-            onShowTimePicker = { viewModel.processIntent(AddEventIntent.ShowTimePicker) },
-            onHideTimePicker = { viewModel.processIntent(AddEventIntent.HideTimePicker) },
-            onSaveClick = { viewModel.processIntent(AddEventIntent.SaveEvent) },
+            onTitleChange = { onProcessIntent(AddEventIntent.UpdateTitle(it)) },
+            onDescriptionChange = { onProcessIntent(AddEventIntent.UpdateDescription(it)) },
+            onDateChange = { onProcessIntent(AddEventIntent.UpdateDate(it)) },
+            onToggleIncludeTime = { onProcessIntent(AddEventIntent.ToggleIncludeTime(it)) },
+            onShowDatePicker = { onProcessIntent(AddEventIntent.ShowDatePicker) },
+            onHideDatePicker = { onProcessIntent(AddEventIntent.HideDatePicker) },
+            onShowTimePicker = { onProcessIntent(AddEventIntent.ShowTimePicker) },
+            onHideTimePicker = { onProcessIntent(AddEventIntent.HideTimePicker) },
+            onSaveClick = { onProcessIntent(AddEventIntent.SaveEvent) },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -397,8 +381,9 @@ private fun SaveEventButton(
 fun AddEventScreenPreview() {
     HowMuchLongerTheme {
         AddEventScreen(
-            eventId = null,
-            onNavigateBack = {}
+            onNavigateBack = {},
+            state = AddEventState(),
+            onProcessIntent = {}
         )
     }
 }
@@ -408,8 +393,9 @@ fun AddEventScreenPreview() {
 fun EditEventScreenPreview() {
     HowMuchLongerTheme {
         AddEventScreen(
-            eventId = 1L,
-            onNavigateBack = {}
+            onNavigateBack = {},
+            state = AddEventState(eventId = 1L, title = "Sample Event", description = "Sample Description"),
+            onProcessIntent = {}
         )
     }
 }
