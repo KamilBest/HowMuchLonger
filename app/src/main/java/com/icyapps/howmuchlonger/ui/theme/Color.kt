@@ -2,10 +2,16 @@ package com.icyapps.howmuchlonger.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Light Theme Colors
+val Background = Color(0xFFFFFFFF)
+val Primary = Color(0xFF1C2038)
+val Accent = Color(0xFF3245BF)
+val EventCardBackground = Color(0xFFE9F8FF)
+val SecondaryText = Color(0xFF8B96B3)
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+// Dark Theme Colors
+val DarkBackground = Color(0xFF121212)
+val DarkPrimary = Color(0xFFE1E2E6)
+val DarkAccent = Color(0xFF5C6ED9)
+val DarkEventCardBackground = Color(0xFF1E3642)
+val DarkSecondaryText = Color(0xFFADB5C7)

@@ -1,5 +1,6 @@
 package com.icyapps.howmuchlonger.ui.screen.eventlist
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -27,23 +29,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import com.icyapps.howmuchlonger.R
 import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
-import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,7 +56,7 @@ fun EventListScreen(
 
     Scaffold(
         topBar = { EventListTopBar() },
-        floatingActionButton = { 
+        floatingActionButton = {
             AddEventButton(onClick = onNavigateToAddEvent)
         }
     ) { paddingValues ->
@@ -84,7 +80,12 @@ fun EventListScreen(
 @Composable
 private fun EventListTopBar() {
     TopAppBar(
-        title = { Text("Upcoming Events") }
+        title = {
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = "App Logo"
+            )
+        }
     )
 }
 
@@ -210,6 +211,9 @@ private fun EventItem(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
         onClick = onEdit
     ) {
         Row(
