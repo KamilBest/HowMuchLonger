@@ -8,6 +8,7 @@ val Primary = Color(0xFF1C2038)
 val Accent = Color(0xFF3245BF)
 val EventCardBackground = Color(0xFFE9F8FF)
 val SecondaryText = Color(0xFF8B96B3)
+val Red = Color(0xFFFF0000)
 
 // Dark Theme Colors
 val DarkBackground = Color(0xFF121212)

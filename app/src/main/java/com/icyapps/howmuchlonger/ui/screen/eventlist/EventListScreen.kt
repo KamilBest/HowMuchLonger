@@ -13,9 +13,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +43,7 @@ import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
+import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.util.concurrent.TimeUnit
 
@@ -60,19 +65,77 @@ fun EventListScreen(
             AddEventButton(onClick = onNavigateToAddEvent)
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            EventListContent(
-                state = state,
-                onDeleteEvent = { eventId ->
-                    onProcessIntent(EventListIntent.DeleteEvent(eventId))
-                },
-                onEditEvent = onNavigateToEditEvent
-            )
+            if (state is EventListState.Success) {
+                EventListTabs(
+                    selectedTab = state.selectedTab,
+                    onTabSelected = { tab ->
+                        onProcessIntent(EventListIntent.SwitchTab(tab))
+                    }
+                )
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                EventListContent(
+                    state = state,
+                    onDeleteEvent = { eventId ->
+                        onProcessIntent(EventListIntent.DeleteEvent(eventId))
+                    },
+                    onEditEvent = onNavigateToEditEvent
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun EventListTabs(
+    selectedTab: EventListTab,
+    onTabSelected: (EventListTab) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        TabButton(
+            text = "Upcoming",
+            selected = selectedTab == EventListTab.UPCOMING,
+            onClick = { onTabSelected(EventListTab.UPCOMING) },
+            modifier = Modifier.weight(1f)
+        )
+
+        TabButton(
+            text = "Past",
+            selected = selectedTab == EventListTab.PAST,
+            onClick = { onTabSelected(EventListTab.PAST) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun TabButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp)),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    ) {
+        Text(text = text)
     }
 }
 
@@ -106,12 +169,12 @@ private fun EventListContent(
         is EventListState.Loading -> LoadingIndicator()
         is EventListState.Error -> ErrorMessage(message = state.message)
         is EventListState.Success -> {
-            if (state.upcomingEvents.isEmpty() && state.pastEvents.isEmpty()) {
-                EmptyListMessage()
+            if (state.events.isEmpty()) {
+                EmptyListMessage(selectedTab = state.selectedTab)
             } else {
                 EventsList(
-                    upcomingEvents = state.upcomingEvents,
-                    pastEvents = state.pastEvents,
+                    events = state.events,
+                    selectedTab = state.selectedTab,
                     onDeleteEvent = onDeleteEvent,
                     onEditEvent = onEditEvent
                 )
@@ -143,10 +206,13 @@ private fun ErrorMessage(message: String) {
 }
 
 @Composable
-private fun EmptyListMessage() {
+private fun EmptyListMessage(selectedTab: EventListTab) {
     Box(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "No events yet. Add your first event!",
+            text = when (selectedTab) {
+                EventListTab.UPCOMING -> "No upcoming events. Add your first event!"
+                EventListTab.PAST -> "No past events. Add your first event!"
+            },
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(16.dp)
@@ -156,8 +222,8 @@ private fun EmptyListMessage() {
 
 @Composable
 private fun EventsList(
-    upcomingEvents: List<Event>,
-    pastEvents: List<Event>,
+    events: List<Event>,
+    selectedTab: EventListTab,
     onDeleteEvent: (Long) -> Unit,
     onEditEvent: (Long) -> Unit
 ) {
@@ -166,32 +232,18 @@ private fun EventsList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (upcomingEvents.isNotEmpty()) {
+        if (events.isNotEmpty()) {
             item {
                 Text(
-                    text = "Upcoming:",
+                    text = when (selectedTab) {
+                        EventListTab.UPCOMING -> "Upcoming Events:"
+                        EventListTab.PAST -> "Past Events:"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
             }
-            items(upcomingEvents) { event ->
-                EventItem(
-                    event = event,
-                    onDelete = { onDeleteEvent(event.id) },
-                    onEdit = { onEditEvent(event.id) }
-                )
-            }
-        }
-
-        if (pastEvents.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Past events:",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                )
-            }
-            items(pastEvents) { event ->
+            items(events) { event ->
                 EventItem(
                     event = event,
                     onDelete = { onDeleteEvent(event.id) },
@@ -268,7 +320,7 @@ private fun EventListScreenPreview() {
 private fun EventsListPreview() {
     HowMuchLongerTheme {
         EventsList(
-            upcomingEvents = listOf(
+            events = listOf(
                 Event(
                     id = 1L,
                     name = "Birthday Party",
@@ -282,14 +334,7 @@ private fun EventsListPreview() {
                     date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
                 )
             ),
-            pastEvents = listOf(
-                Event(
-                    id = 3L,
-                    name = "Project Deadline",
-                    description = "Final submission for the quarterly project",
-                    date = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)
-                )
-            ),
+            selectedTab = EventListTab.UPCOMING,
             onDeleteEvent = {},
             onEditEvent = {}
         )
@@ -317,7 +362,7 @@ private fun EventItemPreview() {
 @Composable
 private fun EmptyListPreview() {
     HowMuchLongerTheme {
-        EmptyListMessage()
+        EmptyListMessage(selectedTab = EventListTab.UPCOMING)
     }
 }
 

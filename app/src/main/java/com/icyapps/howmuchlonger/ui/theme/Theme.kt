@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
@@ -27,18 +28,51 @@ private val DarkColorScheme = darkColorScheme(
 
 private val LightColorScheme = lightColorScheme(
     primary = Primary,
-    secondary = SecondaryText,
-    tertiary = Accent,
-    background = Background,
-    surface = Background,
     onPrimary = Background,
-    onSecondary = Background,
-    onTertiary = Background,
-    onBackground = Primary,
-    onSurface = Primary,
-    surfaceVariant = EventCardBackground
-)
+    primaryContainer = Primary, // or use a lighter/darker variant if needed
+    onPrimaryContainer = Background,
+    inversePrimary = SecondaryText, // or another appropriate contrast
 
+    secondary = SecondaryText,
+    onSecondary = Background,
+    secondaryContainer = SecondaryText,
+    onSecondaryContainer = Background,
+
+    tertiary = Accent,
+    onTertiary = Background,
+    tertiaryContainer = Accent,
+    onTertiaryContainer = Background,
+
+    background = Background,
+    onBackground = Primary,
+    surface = Background,
+    onSurface = Primary,
+
+    surfaceVariant = EventCardBackground,
+    onSurfaceVariant = Primary,
+
+    surfaceTint = Accent,
+
+    inverseSurface = SecondaryText,
+    inverseOnSurface = Background,
+
+    error = Red,
+    onError = Background,
+    errorContainer = Red,
+    onErrorContainer = Red,
+
+    outline = SecondaryText,
+    outlineVariant = SecondaryText,
+    scrim = Color.Black,
+
+    surfaceBright = Background,
+    surfaceDim = Background,
+    surfaceContainer = Background,
+    surfaceContainerHigh = Background,
+    surfaceContainerHighest = Background,
+    surfaceContainerLow = Background,
+    surfaceContainerLowest = Background,
+)
 @Composable
 fun HowMuchLongerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
