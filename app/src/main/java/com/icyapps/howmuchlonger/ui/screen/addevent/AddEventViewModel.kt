@@ -6,6 +6,7 @@ import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.domain.usecase.AddEventUseCase
 import com.icyapps.howmuchlonger.domain.usecase.GetEventByIdUseCase
 import com.icyapps.howmuchlonger.domain.usecase.UpdateEventUseCase
+import com.icyapps.howmuchlonger.domain.usecase.DeleteEventUseCase
 import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
 import com.icyapps.howmuchlonger.ui.screen.addevent.model.AddEventState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,8 @@ import java.time.ZoneId
 class AddEventViewModel @Inject constructor(
     private val addEventUseCase: AddEventUseCase,
     private val getEventByIdUseCase: GetEventByIdUseCase,
-    private val updateEventUseCase: UpdateEventUseCase
+    private val updateEventUseCase: UpdateEventUseCase,
+    private val deleteEventUseCase: DeleteEventUseCase
 ) : ViewModel() {
 
     private fun getDefaultDate(includeTime: Boolean): Long {
@@ -84,6 +86,7 @@ class AddEventViewModel @Inject constructor(
             is AddEventIntent.HideTimePicker -> hideTimePicker()
             is AddEventIntent.SaveEvent -> saveEvent()
             is AddEventIntent.NavigateBack -> resetAddEventState()
+            is AddEventIntent.DeleteEvent -> deleteEvent()
         }
     }
 
@@ -176,6 +179,19 @@ class AddEventViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+            }
+        }
+    }
+
+    private fun deleteEvent() {
+        val eventId = state.value.eventId ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                deleteEventUseCase(eventId)
+                _state.update { it.copy(isLoading = false, saveCompleted = true) }
+            } catch (e: Exception) {
+                _state.update { it.copy(error = e.message ?: "Unknown error occurred", isLoading = false) }
             }
         }
     }

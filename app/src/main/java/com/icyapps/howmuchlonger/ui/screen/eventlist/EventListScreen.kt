@@ -286,7 +286,7 @@ private fun EventsList(
                 if (events.size > 1) {
                     item {
                         Text(
-                            text = "Next Events:",
+                            text = "Next Events",
                             style = ContrailOneTypography,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )

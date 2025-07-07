@@ -11,4 +11,5 @@ sealed class AddEventIntent {
     object HideTimePicker : AddEventIntent()
     object SaveEvent : AddEventIntent()
     object NavigateBack : AddEventIntent()
+    object DeleteEvent : AddEventIntent()
 }
