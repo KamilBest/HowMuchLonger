@@ -23,7 +23,8 @@ import java.util.concurrent.TimeUnit
 fun CountdownText(
     targetTimeInMs: Long,
     locale: Locale = Locale.getDefault(),
-    color: Color = MaterialTheme.colorScheme.onSurface
+    color: Color = MaterialTheme.colorScheme.onSurface,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium
 ) {
     var now by remember { mutableStateOf(LocalDateTime.now()) }
 
@@ -66,7 +67,7 @@ fun CountdownText(
 
     Text(
         text = displayText,
-        style = MaterialTheme.typography.bodyMedium,
+        style = style,
         color = color
     )
 }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +45,7 @@ import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
+import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.util.concurrent.TimeUnit
 
@@ -135,7 +137,7 @@ private fun TabButton(
             contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
         )
     ) {
-        Text(text = text)
+        Text(text = text, style = ContrailOneTypography, modifier = Modifier.padding(8.dp))
     }
 }
 
@@ -197,6 +199,7 @@ private fun ErrorMessage(message: String) {
     Box(modifier = Modifier.fillMaxSize()) {
         Text(
             text = message,
+            style = ContrailOneTypography,
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier
                 .align(Alignment.Center)
@@ -213,6 +216,7 @@ private fun EmptyListMessage(selectedTab: EventListTab) {
                 EventListTab.UPCOMING -> "No upcoming events. Add your first event!"
                 EventListTab.PAST -> "No past events. Add your first event!"
             },
+            style = ContrailOneTypography,
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(16.dp)
@@ -230,25 +234,64 @@ private fun EventsList(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (events.isNotEmpty()) {
-            item {
-                Text(
-                    text = when (selectedTab) {
-                        EventListTab.UPCOMING -> "Upcoming Events:"
-                        EventListTab.PAST -> "Past Events:"
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-            items(events) { event ->
-                EventItem(
-                    event = event,
-                    onDelete = { onDeleteEvent(event.id) },
-                    onEdit = { onEditEvent(event.id) }
-                )
+            if (selectedTab == EventListTab.UPCOMING) {
+                // Show closest event prominently for upcoming events
+                item {
+                    Column {
+                        // "Closest Event" label outside the card
+                        Text(
+                            text = "Closest Event",
+                            style = ContrailOneTypography,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        
+                        ClosestEventCard(
+                            event = events.first(),
+                            onDelete = { onDeleteEvent(events.first().id) },
+                            onEdit = { onEditEvent(events.first().id) }
+                        )
+                    }
+                }
+                
+                // Show remaining events under "Next Events" label
+                if (events.size > 1) {
+                    item {
+                        Text(
+                            text = "Next Events:",
+                            style = ContrailOneTypography,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                    
+                    items(events.drop(1)) { event ->
+                        EventItem(
+                            event = event,
+                            onDelete = { onDeleteEvent(event.id) },
+                            onEdit = { onEditEvent(event.id) }
+                        )
+                    }
+                }
+            } else {
+                // For past events, show all events normally
+                item {
+                    Text(
+                        text = "Past Events:",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
+                
+                items(events) { event ->
+                    EventItem(
+                        event = event,
+                        onDelete = { onDeleteEvent(event.id) },
+                        onEdit = { onEditEvent(event.id) }
+                    )
+                }
             }
         }
     }
@@ -266,38 +309,67 @@ private fun EventItem(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
+        shape = RoundedCornerShape(20.dp),
         onClick = onEdit
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = event.name,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = event.description,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = event.name,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = event.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.height(4.dp))
 
-                CountdownText(targetTimeInMs = event.date)
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    Icons.Default.Delete,
-                    contentDescription = "Delete Event",
-                    tint = MaterialTheme.colorScheme.error
-                )
-            }
+            CountdownText(targetTimeInMs = event.date)
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ClosestEventCard(
+    event: Event,
+    onDelete: () -> Unit,
+    onEdit: () -> Unit = {}
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(20.dp),
+        onClick = onEdit
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Text(
+                text = event.name,
+                style = MaterialTheme.typography.headlineSmall
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = event.description,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            CountdownText(
+                targetTimeInMs = event.date,
+                style = MaterialTheme.typography.titleMedium
+            )
         }
     }
 }
@@ -379,5 +451,22 @@ private fun ErrorMessagePreview() {
 private fun LoadingIndicatorPreview() {
     HowMuchLongerTheme {
         LoadingIndicator()
+    }
+}
+
+@Preview
+@Composable
+private fun ClosestEventCardPreview() {
+    HowMuchLongerTheme {
+        ClosestEventCard(
+            event = Event(
+                id = 1L,
+                name = "Birthday Party",
+                description = "Annual celebration with friends and family",
+                date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(2)
+            ),
+            onDelete = {},
+            onEdit = {}
+        )
     }
 }
