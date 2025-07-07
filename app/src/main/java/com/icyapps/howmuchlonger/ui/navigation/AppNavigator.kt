@@ -13,10 +13,8 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventScreen
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventViewModel
-import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListScreen
 import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListViewModel
-import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 
 @Composable
 fun AppNavigator() {
@@ -32,7 +30,7 @@ fun AppNavigator() {
 
     NavDisplay(
         backStack = backStack,
-        onBack = { 
+        onBack = {
             Log.d("AppNavigator", "Back navigation triggered")
             val removed = backStack.removeLastOrNull()
             if (removed != null) {
@@ -62,10 +60,13 @@ fun AppNavigator() {
                 }
 
                 is Routes.AddEditEvent -> NavEntry(key) {
-                    // The eventId is automatically passed to the ViewModel via SavedStateHandle
-                    // No need to manually set it
                     val viewModel: AddEventViewModel = hiltViewModel()
                     val state by viewModel.state.collectAsState()
+
+                    // Always initialize the ViewModel with the eventId (null for create, id for edit)
+                    LaunchedEffect(key.eventId) {
+                        viewModel.initialize(key.eventId)
+                    }
 
                     // Define the navigation function
                     val navigateBack: () -> Unit = {

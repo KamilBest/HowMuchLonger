@@ -1,6 +1,5 @@
 package com.icyapps.howmuchlonger.ui.screen.addevent
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.icyapps.howmuchlonger.domain.model.Event
@@ -21,44 +20,32 @@ import javax.inject.Inject
 class AddEventViewModel @Inject constructor(
     private val addEventUseCase: AddEventUseCase,
     private val getEventByIdUseCase: GetEventByIdUseCase,
-    private val updateEventUseCase: UpdateEventUseCase,
-    private val savedStateHandle: SavedStateHandle
+    private val updateEventUseCase: UpdateEventUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AddEventState())
     val state: StateFlow<AddEventState> = _state.asStateFlow()
 
-
-    init {
-        viewModelScope.launch {
-            savedStateHandle.getStateFlow<Long?>("eventId", null).collect { eventId ->
-                if (eventId != null) {
-                    loadEvent(eventId)
-                }
-            }
-        }
-    }
-
-    private fun loadEvent(eventId: Long) {
-        viewModelScope.launch {
-            _state.update { it.copy(isLoading = true) }
+    suspend fun initialize(eventId: Long?) {
+        if (eventId == null) {
+            _state.value = AddEventState()
+        } else {
+            _state.value = _state.value.copy(isLoading = true)
             try {
                 val event = getEventByIdUseCase(eventId)
                 if (event != null) {
-                    _state.update {
-                        it.copy(
-                            eventId = event.id,
-                            title = event.name,
-                            description = event.description,
-                            date = event.date,
-                            isLoading = false
-                        )
-                    }
+                    _state.value = _state.value.copy(
+                        eventId = event.id,
+                        title = event.name,
+                        description = event.description,
+                        date = event.date,
+                        isLoading = false
+                    )
                 } else {
-                    _state.update { it.copy(error = "Event not found", isLoading = false) }
+                    _state.value = _state.value.copy(error = "Event not found", isLoading = false)
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.message, isLoading = false) }
+                _state.value = _state.value.copy(error = e.message, isLoading = false)
             }
         }
     }

@@ -10,7 +10,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import com.icyapps.howmuchlonger.domain.util.DurationFormatter
+import com.icyapps.howmuchlonger.ui.theme.Accent
 import kotlinx.coroutines.delay
 import java.time.Duration
 import java.time.Instant
@@ -23,7 +25,7 @@ import java.util.concurrent.TimeUnit
 fun CountdownText(
     targetTimeInMs: Long,
     locale: Locale = Locale.getDefault(),
-    color: Color = MaterialTheme.colorScheme.onSurface,
+    color: Color = Accent,
     style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium
 ) {
     var now by remember { mutableStateOf(LocalDateTime.now()) }
@@ -68,6 +70,7 @@ fun CountdownText(
     Text(
         text = displayText,
         style = style,
-        color = color
+        color = color,
+        fontWeight = FontWeight.Bold
     )
 }

@@ -44,6 +44,7 @@ import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
+import com.icyapps.howmuchlonger.ui.theme.Accent
 import com.icyapps.howmuchlonger.ui.theme.Background
 import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
@@ -377,7 +378,8 @@ private fun ClosestEventCard(
 
             CountdownText(
                 targetTimeInMs = event.date,
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                color = Accent
             )
         }
     }
