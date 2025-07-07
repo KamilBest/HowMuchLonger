@@ -276,15 +276,6 @@ private fun EventsList(
                     }
                 }
             } else {
-                // For past events, show all events normally
-                item {
-                    Text(
-                        text = "Past Events:",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-                
                 items(events) { event ->
                     EventItem(
                         event = event,
