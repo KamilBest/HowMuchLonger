@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 @HiltViewModel
 class AddEventViewModel @Inject constructor(
@@ -23,12 +26,31 @@ class AddEventViewModel @Inject constructor(
     private val updateEventUseCase: UpdateEventUseCase
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(AddEventState())
+    private fun getDefaultDate(includeTime: Boolean): Long {
+        return if (includeTime) {
+            val now = LocalDateTime.now()
+            val nextHour = now.plusHours(1).withMinute(0).withSecond(0).withNano(0)
+            nextHour.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        } else {
+            val tomorrowMidnight = LocalDate.now().plusDays(1).atStartOfDay()
+            tomorrowMidnight.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+    }
+
+    private val _state = MutableStateFlow(
+        AddEventState(
+            date = getDefaultDate(true),
+            includeTime = true
+        )
+    )
     val state: StateFlow<AddEventState> = _state.asStateFlow()
 
     suspend fun initialize(eventId: Long?) {
         if (eventId == null) {
-            _state.value = AddEventState()
+            _state.value = AddEventState(
+                date = getDefaultDate(true),
+                includeTime = true
+            )
         } else {
             _state.value = _state.value.copy(isLoading = true)
             try {
@@ -66,7 +88,12 @@ class AddEventViewModel @Inject constructor(
     }
 
     private fun resetAddEventState() {
-        _state.update { AddEventState() }
+        _state.update {
+            AddEventState(
+                date = getDefaultDate(true),
+                includeTime = true
+            )
+        }
     }
 
     private fun updateTitle(title: String) {
@@ -82,7 +109,16 @@ class AddEventViewModel @Inject constructor(
     }
 
     private fun toggleIncludeTime(include: Boolean) {
-        _state.update { it.copy(includeTime = include) }
+        _state.update {
+            val newDate = if (include) {
+                // Switch to time: set to next full hour from now
+                getDefaultDate(true)
+            } else {
+                // Switch to date only: set to today at midnight
+                getDefaultDate(false)
+            }
+            it.copy(includeTime = include, date = newDate)
+        }
     }
 
     private fun showDatePicker() {

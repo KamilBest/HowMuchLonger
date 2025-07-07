@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
 import com.icyapps.howmuchlonger.ui.screen.addevent.model.AddEventState
+import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -204,6 +205,7 @@ private fun EventDescriptionField(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EventDateField(
+    modifier: Modifier = Modifier,
     date: Long,
     onDateSelected: (Long) -> Unit,
     includeTime: Boolean = true,
@@ -214,9 +216,15 @@ private fun EventDateField(
     onHideDatePicker: () -> Unit = {},
     onShowTimePicker: () -> Unit = {},
     onHideTimePicker: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
-    val dateFormat = remember(includeTime) { 
+    // Always extract hour/minute from date value
+    val calendar = remember(date) {
+        java.util.Calendar.getInstance().apply { timeInMillis = date }
+    }
+    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(java.util.Calendar.MINUTE)
+
+    val dateFormat = remember(includeTime) {
         if (includeTime) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         else SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     }
@@ -272,15 +280,18 @@ private fun EventDateField(
                             val newDate = if (includeTime) {
                                 val calendar = java.util.Calendar.getInstance()
                                 calendar.timeInMillis = date
-                                val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-                                val minute = calendar.get(java.util.Calendar.MINUTE)
-
                                 calendar.timeInMillis = selectedDate
                                 calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
                                 calendar.set(java.util.Calendar.MINUTE, minute)
                                 calendar.timeInMillis
                             } else {
-                                selectedDate
+                                val calendar = java.util.Calendar.getInstance()
+                                calendar.timeInMillis = selectedDate
+                                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                calendar.set(java.util.Calendar.MINUTE, 0)
+                                calendar.set(java.util.Calendar.SECOND, 0)
+                                calendar.set(java.util.Calendar.MILLISECOND, 0)
+                                calendar.timeInMillis
                             }
                             onDateSelected(newDate)
                         }
@@ -301,12 +312,6 @@ private fun EventDateField(
     }
 
     if (showTimePicker && includeTime) {
-        val calendar = java.util.Calendar.getInstance().apply {
-            timeInMillis = date
-        }
-        val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-        val minute = calendar.get(java.util.Calendar.MINUTE)
-
         val timePickerState = rememberTimePickerState(
             initialHour = hour,
             initialMinute = minute
@@ -371,7 +376,7 @@ private fun SaveEventButton(
                 color = MaterialTheme.colorScheme.onPrimary
             )
         } else {
-            Text("Save Event")
+            Text("Save Event", style = ContrailOneTypography)
         }
     }
 }
@@ -394,7 +399,11 @@ fun EditEventScreenPreview() {
     HowMuchLongerTheme {
         AddEventScreen(
             onNavigateBack = {},
-            state = AddEventState(eventId = 1L, title = "Sample Event", description = "Sample Description"),
+            state = AddEventState(
+                eventId = 1L,
+                title = "Sample Event",
+                description = "Sample Description"
+            ),
             onProcessIntent = {}
         )
     }

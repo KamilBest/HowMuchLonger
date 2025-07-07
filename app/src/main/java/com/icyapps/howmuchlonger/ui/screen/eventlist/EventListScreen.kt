@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +49,11 @@ import com.icyapps.howmuchlonger.ui.theme.Accent
 import com.icyapps.howmuchlonger.ui.theme.Background
 import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
+import com.icyapps.howmuchlonger.ui.theme.PastEventCardBackground
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +78,7 @@ fun EventListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(top = 30.dp)
         ) {
             if (state is EventListState.Success) {
                 EventListTabs(
@@ -270,7 +277,6 @@ private fun EventsList(
 
                         ClosestEventCard(
                             event = events.first(),
-                            onDelete = { onDeleteEvent(events.first().id) },
                             onEdit = { onEditEvent(events.first().id) }
                         )
                     }
@@ -290,7 +296,8 @@ private fun EventsList(
                         EventItem(
                             event = event,
                             onDelete = { onDeleteEvent(event.id) },
-                            onEdit = { onEditEvent(event.id) }
+                            onEdit = { onEditEvent(event.id) },
+                            selectedTab = selectedTab
                         )
                     }
                 }
@@ -299,7 +306,8 @@ private fun EventsList(
                     EventItem(
                         event = event,
                         onDelete = { onDeleteEvent(event.id) },
-                        onEdit = { onEditEvent(event.id) }
+                        onEdit = { onEditEvent(event.id) },
+                        selectedTab = selectedTab
                     )
                 }
             }
@@ -312,12 +320,20 @@ private fun EventsList(
 private fun EventItem(
     event: Event,
     onDelete: () -> Unit,
-    onEdit: () -> Unit = {}
+    onEdit: () -> Unit = {},
+    selectedTab: EventListTab = EventListTab.UPCOMING
 ) {
+    val formattedDate = remember(event.date) {
+        val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
+        Instant.ofEpochMilli(event.date)
+            .atZone(ZoneId.systemDefault())
+            .format(formatter)
+    }
+    val cardColor = if (selectedTab == EventListTab.PAST) PastEventCardBackground else MaterialTheme.colorScheme.surfaceVariant
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = cardColor
         ),
         shape = RoundedCornerShape(20.dp),
         onClick = onEdit
@@ -331,7 +347,6 @@ private fun EventItem(
                 text = event.name,
                 style = MaterialTheme.typography.titleMedium
             )
-            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = event.description,
                 style = MaterialTheme.typography.bodyMedium
@@ -339,6 +354,11 @@ private fun EventItem(
             Spacer(modifier = Modifier.height(4.dp))
 
             CountdownText(targetTimeInMs = event.date)
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
         }
     }
 }
@@ -347,9 +367,14 @@ private fun EventItem(
 @Composable
 private fun ClosestEventCard(
     event: Event,
-    onDelete: () -> Unit,
     onEdit: () -> Unit = {}
 ) {
+    val formattedDate = remember(event.date) {
+        val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
+        Instant.ofEpochMilli(event.date)
+            .atZone(ZoneId.systemDefault())
+            .format(formatter)
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -369,7 +394,7 @@ private fun ClosestEventCard(
                 text = event.name,
                 style = MaterialTheme.typography.headlineSmall
             )
-            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 text = event.description,
                 style = MaterialTheme.typography.bodyLarge
@@ -378,8 +403,12 @@ private fun ClosestEventCard(
 
             CountdownText(
                 targetTimeInMs = event.date,
-                style = MaterialTheme.typography.titleMedium,
-                color = Accent
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
             )
         }
     }
@@ -476,7 +505,6 @@ private fun ClosestEventCardPreview() {
                 description = "Annual celebration with friends and family",
                 date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(2)
             ),
-            onDelete = {},
             onEdit = {}
         )
     }
