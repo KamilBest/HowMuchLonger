@@ -1,6 +1,5 @@
 package com.icyapps.howmuchlonger.ui.screen.eventlist
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,13 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,7 +24,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -35,7 +32,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,17 +40,17 @@ import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
-import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
-import com.icyapps.howmuchlonger.ui.theme.Accent
-import com.icyapps.howmuchlonger.ui.theme.Background
 import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
-import com.icyapps.howmuchlonger.ui.theme.PastEventCardBackground
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.draw.clip
+import com.icyapps.howmuchlonger.domain.model.EventType
+import com.icyapps.howmuchlonger.ui.theme.HolidayEventCardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +84,6 @@ fun EventListScreen(
                     }
                 )
             }
-
             Box(modifier = Modifier.fillMaxSize()) {
                 EventListContent(
                     state = state,
@@ -104,8 +99,8 @@ fun EventListScreen(
 
 @Composable
 private fun EventListTabs(
-    selectedTab: EventListTab,
-    onTabSelected: (EventListTab) -> Unit
+    selectedTab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab,
+    onTabSelected: (com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -115,15 +110,14 @@ private fun EventListTabs(
     ) {
         TabButton(
             text = "Upcoming",
-            selected = selectedTab == EventListTab.UPCOMING,
-            onClick = { onTabSelected(EventListTab.UPCOMING) },
+            selected = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING,
+            onClick = { onTabSelected(com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING) },
             modifier = Modifier.weight(1f)
         )
-
         TabButton(
             text = "Past",
-            selected = selectedTab == EventListTab.PAST,
-            onClick = { onTabSelected(EventListTab.PAST) },
+            selected = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST,
+            onClick = { onTabSelected(com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST) },
             modifier = Modifier.weight(1f)
         )
     }
@@ -137,10 +131,10 @@ private fun TabButton(
     modifier: Modifier = Modifier
 ) {
     if (selected) {
-        Button(
+        androidx.compose.material3.Button(
             onClick = onClick,
             modifier = modifier.clip(RoundedCornerShape(8.dp)),
-            colors = ButtonDefaults.buttonColors(
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary
             )
@@ -148,12 +142,12 @@ private fun TabButton(
             Text(text = text, style = ContrailOneTypography, modifier = Modifier.padding(8.dp))
         }
     } else {
-        OutlinedButton(
+        androidx.compose.material3.OutlinedButton(
             onClick = onClick,
             modifier = modifier.clip(RoundedCornerShape(8.dp)),
             border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = Background,
+            colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.primary
             )
         ) {
@@ -164,26 +158,6 @@ private fun TabButton(
                 modifier = Modifier.padding(8.dp)
             )
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun EventListTopBar() {
-    TopAppBar(
-        title = {
-            Image(
-                painter = painterResource(id = R.drawable.logo),
-                contentDescription = "App Logo"
-            )
-        }
-    )
-}
-
-@Composable
-private fun AddEventButton(onClick: () -> Unit) {
-    FloatingActionButton(onClick = onClick) {
-        Icon(Icons.Default.Add, contentDescription = "Add Event")
     }
 }
 
@@ -198,11 +172,10 @@ private fun EventListContent(
         is EventListState.Error -> ErrorMessage(message = state.message)
         is EventListState.Success -> {
             if (state.events.isEmpty()) {
-                EmptyListMessage(selectedTab = state.selectedTab)
+                EmptyListMessage(state.selectedTab)
             } else {
                 EventsList(
                     events = state.events,
-                    selectedTab = state.selectedTab,
                     onDeleteEvent = onDeleteEvent,
                     onEditEvent = onEditEvent
                 )
@@ -212,35 +185,12 @@ private fun EventListContent(
 }
 
 @Composable
-private fun LoadingIndicator() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        CircularProgressIndicator(
-            modifier = Modifier.align(Alignment.Center)
-        )
-    }
-}
-
-@Composable
-private fun ErrorMessage(message: String) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = message,
-            style = ContrailOneTypography,
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(16.dp)
-        )
-    }
-}
-
-@Composable
-private fun EmptyListMessage(selectedTab: EventListTab) {
+private fun EmptyListMessage(selectedTab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab) {
     Box(modifier = Modifier.fillMaxSize()) {
         Text(
             text = when (selectedTab) {
-                EventListTab.UPCOMING -> "No upcoming events. Add your first event!"
-                EventListTab.PAST -> "No past events. Add your first event!"
+                com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING -> "No upcoming events. Add your first event!"
+                com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST -> "No past events. Add your first event!"
             },
             style = ContrailOneTypography,
             modifier = Modifier
@@ -253,7 +203,6 @@ private fun EmptyListMessage(selectedTab: EventListTab) {
 @Composable
 private fun EventsList(
     events: List<Event>,
-    selectedTab: EventListTab,
     onDeleteEvent: (Long) -> Unit,
     onEditEvent: (Long) -> Unit
 ) {
@@ -262,55 +211,12 @@ private fun EventsList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        if (events.isNotEmpty()) {
-            if (selectedTab == EventListTab.UPCOMING) {
-                // Show closest event prominently for upcoming events
-                item {
-                    Column {
-                        // "Closest Event" label outside the card
-                        Text(
-                            text = "Closest Event",
-                            style = ContrailOneTypography,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-
-                        ClosestEventCard(
-                            event = events.first(),
-                            onEdit = { onEditEvent(events.first().id) }
-                        )
-                    }
-                }
-
-                // Show remaining events under "Next Events" label
-                if (events.size > 1) {
-                    item {
-                        Text(
-                            text = "Next Events",
-                            style = ContrailOneTypography,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-
-                    items(events.drop(1)) { event ->
-                        EventItem(
-                            event = event,
-                            onDelete = { onDeleteEvent(event.id) },
-                            onEdit = { onEditEvent(event.id) },
-                            selectedTab = selectedTab
-                        )
-                    }
-                }
-            } else {
-                items(events) { event ->
-                    EventItem(
-                        event = event,
-                        onDelete = { onDeleteEvent(event.id) },
-                        onEdit = { onEditEvent(event.id) },
-                        selectedTab = selectedTab
-                    )
-                }
-            }
+        items(events) { event ->
+            EventItem(
+                event = event,
+                onDelete = { onDeleteEvent(event.id) },
+                onEdit = { onEditEvent(event.id) }
+            )
         }
     }
 }
@@ -320,8 +226,7 @@ private fun EventsList(
 private fun EventItem(
     event: Event,
     onDelete: () -> Unit,
-    onEdit: () -> Unit = {},
-    selectedTab: EventListTab = EventListTab.UPCOMING
+    onEdit: () -> Unit = {}
 ) {
     val formattedDate = remember(event.date) {
         val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
@@ -329,11 +234,14 @@ private fun EventItem(
             .atZone(ZoneId.systemDefault())
             .format(formatter)
     }
-    val cardColor = if (selectedTab == EventListTab.PAST) PastEventCardBackground else MaterialTheme.colorScheme.surfaceVariant
+    val containerColor = when(event.type){
+        EventType.Normal -> MaterialTheme.colorScheme.surfaceVariant
+        EventType.Holiday -> HolidayEventCardBackground
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = cardColor
+            containerColor = containerColor
         ),
         shape = RoundedCornerShape(20.dp),
         onClick = onEdit
@@ -343,10 +251,12 @@ private fun EventItem(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Text(
-                text = event.name,
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = event.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
             Text(
                 text = event.description,
                 style = MaterialTheme.typography.bodyMedium
@@ -414,6 +324,49 @@ private fun ClosestEventCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventListTopBar() {
+    TopAppBar(
+        title = {
+            Image(
+                painter = painterResource(id = R.drawable.logo),
+                contentDescription = "App Logo"
+            )
+        }
+    )
+}
+
+@Composable
+private fun AddEventButton(onClick: () -> Unit) {
+    FloatingActionButton(onClick = onClick) {
+        Icon(Icons.Default.Add, contentDescription = "Add Event")
+    }
+}
+
+@Composable
+private fun LoadingIndicator() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        CircularProgressIndicator(
+            modifier = Modifier.align(Alignment.Center)
+        )
+    }
+}
+
+@Composable
+private fun ErrorMessage(message: String) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = message,
+            style = ContrailOneTypography,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(16.dp)
+        )
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 private fun EventListScreenPreview() {
@@ -446,7 +399,6 @@ private fun EventsListPreview() {
                     date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
                 )
             ),
-            selectedTab = EventListTab.UPCOMING,
             onDeleteEvent = {},
             onEditEvent = {}
         )
@@ -474,7 +426,7 @@ private fun EventItemPreview() {
 @Composable
 private fun EmptyListPreview() {
     HowMuchLongerTheme {
-        EmptyListMessage(selectedTab = EventListTab.UPCOMING)
+        EmptyListMessage(com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING)
     }
 }
 

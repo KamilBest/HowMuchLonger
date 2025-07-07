@@ -36,8 +36,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideEventRepository(
-        eventDao: EventDao
+        eventDao: EventDao,
+        publicHolidayApi: com.icyapps.howmuchlonger.data.model.PublicHolidayApi
     ): EventRepository {
-        return EventRepositoryImpl(eventDao)
+        return EventRepositoryImpl(eventDao, publicHolidayApi)
     }
 } 

@@ -1,6 +1,5 @@
 package com.icyapps.howmuchlonger.ui.screen.addevent
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +13,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -26,26 +23,28 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import android.util.Log
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
 import com.icyapps.howmuchlonger.ui.screen.addevent.model.AddEventState
-import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -72,10 +71,7 @@ fun AddEventScreen(
         topBar = {
             AddEventTopBar(
                 isEditMode = state.eventId != null,
-                onNavigateBack = onNavigateBack,
-                onRemove = if (state.eventId != null) {
-                    { onProcessIntent(AddEventIntent.DeleteEvent) }
-                } else null
+                onNavigateBack = onNavigateBack
             )
         }
     ) { paddingValues ->
@@ -102,37 +98,10 @@ fun AddEventScreen(
 @Composable
 private fun AddEventTopBar(
     isEditMode: Boolean,
-    onNavigateBack: () -> Unit,
-    onRemove: (() -> Unit)? = null
+    onNavigateBack: () -> Unit
 ) {
     TopAppBar(
-        title = {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(end = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(if (isEditMode) "Edit Event" else "Add New Event")
-                if (isEditMode && onRemove != null) {
-                    OutlinedButton(
-                        onClick = onRemove,
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color.Red
-                        ),
-                        border = BorderStroke(1.dp, Color.Red),
-                        modifier = Modifier.height(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Remove Event",
-                            tint = Color.Red
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Remove", color = Color.Red)
-                    }
-                }
-            }
-        },
+        title = { Text(if (isEditMode) "Edit Event" else "Add New Event") },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -247,12 +216,30 @@ private fun EventDateField(
     onShowTimePicker: () -> Unit = {},
     onHideTimePicker: () -> Unit = {},
 ) {
-    // Always extract hour/minute from date value
-    val calendar = remember(date) {
-        java.util.Calendar.getInstance().apply { timeInMillis = date }
+    // Determine if this is a new event (date is close to now)
+    val isNewEvent = remember(date) {
+        val now = System.currentTimeMillis()
+        // If the date is within 2 minutes of now, treat as new event
+        kotlin.math.abs(date - now) < 2 * 60 * 1000
     }
-    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-    val minute = calendar.get(java.util.Calendar.MINUTE)
+
+    // Calculate default hour/minute for new events
+    val (defaultHour, defaultMinute) = remember(includeTime, isNewEvent) {
+        if (includeTime) {
+            if (isNewEvent) {
+                val cal = java.util.Calendar.getInstance()
+                cal.timeInMillis = System.currentTimeMillis()
+                val hour = (cal.get(java.util.Calendar.HOUR_OF_DAY) + 1) % 24
+                hour to 0
+            } else {
+                val cal = java.util.Calendar.getInstance()
+                cal.timeInMillis = date
+                cal.get(java.util.Calendar.HOUR_OF_DAY) to cal.get(java.util.Calendar.MINUTE)
+            }
+        } else {
+            0 to 0
+        }
+    }
 
     val dateFormat = remember(includeTime) {
         if (includeTime) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
@@ -310,6 +297,9 @@ private fun EventDateField(
                             val newDate = if (includeTime) {
                                 val calendar = java.util.Calendar.getInstance()
                                 calendar.timeInMillis = date
+                                val hour = defaultHour
+                                val minute = defaultMinute
+
                                 calendar.timeInMillis = selectedDate
                                 calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
                                 calendar.set(java.util.Calendar.MINUTE, minute)
@@ -343,8 +333,8 @@ private fun EventDateField(
 
     if (showTimePicker && includeTime) {
         val timePickerState = rememberTimePickerState(
-            initialHour = hour,
-            initialMinute = minute
+            initialHour = defaultHour,
+            initialMinute = defaultMinute
         )
 
         androidx.compose.material3.AlertDialog(
@@ -406,7 +396,7 @@ private fun SaveEventButton(
                 color = MaterialTheme.colorScheme.onPrimary
             )
         } else {
-            Text(modifier = Modifier.padding(8.dp), text = "Save Event", style = ContrailOneTypography)
+            Text("Save Event")
         }
     }
 }

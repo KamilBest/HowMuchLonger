@@ -28,4 +28,7 @@ interface EventDao {
 
     @Query("SELECT * FROM events ORDER BY date ASC LIMIT 3")
     fun getTop3Events(): Flow<List<EventEntity>>
+
+    @Query("SELECT * FROM events WHERE date BETWEEN :start AND :end ORDER BY date ASC")
+    suspend fun getEventsBetween(start: Long, end: Long): List<EventEntity>
 } 
