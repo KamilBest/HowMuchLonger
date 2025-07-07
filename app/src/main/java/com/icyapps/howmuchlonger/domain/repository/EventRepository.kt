@@ -4,7 +4,7 @@ import com.icyapps.howmuchlonger.domain.model.Event
 import kotlinx.coroutines.flow.Flow
 
 interface EventRepository {
-    suspend fun getAllEvents(): Flow<List<Event>>
+    suspend fun getAllEvents(year: Int, countryCode: String, includeHolidays: Boolean = true): Flow<List<Event>>
     suspend fun getCustomEvents(): Flow<List<Event>>
     suspend fun getHolidayEvents(): Flow<List<Event>>
     suspend fun refreshHolidaysIfNeeded(year: Int, countryCode: String)

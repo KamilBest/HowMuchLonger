@@ -14,56 +14,62 @@ import androidx.compose.ui.text.font.FontWeight
 import com.icyapps.howmuchlonger.domain.util.DurationFormatter
 import com.icyapps.howmuchlonger.ui.theme.Accent
 import kotlinx.coroutines.delay
-import java.time.Duration
-import java.time.Instant
-import java.time.LocalDateTime
-import java.time.ZoneId
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @Composable
 fun CountdownText(
     targetTimeInMs: Long,
+    isPastTab: Boolean = false,
     locale: Locale = Locale.getDefault(),
     color: Color = Accent,
     style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium
 ) {
-    var now by remember { mutableStateOf(LocalDateTime.now()) }
-
-    val targetDateTime = remember(targetTimeInMs) {
-        Instant.ofEpochMilli(targetTimeInMs)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDateTime()
-    }
-
-    val remainingMillis by remember {
-        derivedStateOf {
-            Duration.between(now, targetDateTime)
-                .coerceAtLeast(Duration.ZERO)
-                .toMillis()
-        }
-    }
-
-    val showSeconds by remember {
-        derivedStateOf { remainingMillis <= TimeUnit.MINUTES.toMillis(1) }
-    }
+    var currentTimeInMs by remember { mutableStateOf(System.currentTimeMillis()) }
 
     val displayText by remember {
         derivedStateOf {
-            DurationFormatter.format(remainingMillis, locale, showSeconds)
+            if (isPastTab) {
+                "Past event"
+            } else {
+                val remainingMillis = targetTimeInMs - currentTimeInMs
+                if (remainingMillis <= 0) {
+                    "Past event"
+                } else {
+                    val showSeconds = remainingMillis <= TimeUnit.MINUTES.toMillis(1)
+                    DurationFormatter.format(remainingMillis, locale, showSeconds)
+                }
+            }
         }
     }
 
-    val updateDelay = when {
-        showSeconds -> 1_000L
-        remainingMillis > TimeUnit.HOURS.toMillis(1) -> 60_000L
-        else -> 10_000L
+    val updateDelay = remember {
+        derivedStateOf {
+            if (isPastTab) {
+                Long.MAX_VALUE // Don't update past events
+            } else {
+                val remainingMillis = targetTimeInMs - currentTimeInMs
+                when {
+                    remainingMillis <= 0 -> Long.MAX_VALUE // Don't update past events
+                    remainingMillis <= TimeUnit.MINUTES.toMillis(1) -> 1_000L
+                    remainingMillis > TimeUnit.HOURS.toMillis(1) -> 60_000L
+                    else -> 10_000L
+                }
+            }
+        }
     }
 
-    LaunchedEffect(targetDateTime, updateDelay) {
-        while (remainingMillis > 0) {
-            now = LocalDateTime.now()
-            delay(updateDelay)
+    LaunchedEffect(targetTimeInMs, isPastTab) {
+        // Only update for future events in upcoming tab
+        if (!isPastTab) {
+            while (true) {
+                currentTimeInMs = System.currentTimeMillis()
+                // Check if event has passed
+                if (currentTimeInMs >= targetTimeInMs) {
+                    break // Stop updating when event becomes past
+                }
+                delay(updateDelay.value)
+            }
         }
     }
 

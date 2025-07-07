@@ -176,6 +176,7 @@ private fun EventListContent(
             } else {
                 EventsList(
                     events = state.events,
+                    selectedTab = state.selectedTab,
                     onDeleteEvent = onDeleteEvent,
                     onEditEvent = onEditEvent
                 )
@@ -203,6 +204,7 @@ private fun EmptyListMessage(selectedTab: com.icyapps.howmuchlonger.ui.screen.ev
 @Composable
 private fun EventsList(
     events: List<Event>,
+    selectedTab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab,
     onDeleteEvent: (Long) -> Unit,
     onEditEvent: (Long) -> Unit
 ) {
@@ -214,6 +216,7 @@ private fun EventsList(
         items(events) { event ->
             EventItem(
                 event = event,
+                isPastTab = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST,
                 onDelete = { onDeleteEvent(event.id) },
                 onEdit = { onEditEvent(event.id) }
             )
@@ -225,6 +228,7 @@ private fun EventsList(
 @Composable
 private fun EventItem(
     event: Event,
+    isPastTab: Boolean,
     onDelete: () -> Unit,
     onEdit: () -> Unit = {}
 ) {
@@ -263,7 +267,10 @@ private fun EventItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
 
-            CountdownText(targetTimeInMs = event.date)
+            CountdownText(
+                targetTimeInMs = event.date,
+                isPastTab = isPastTab
+            )
             Text(
                 text = formattedDate,
                 style = MaterialTheme.typography.bodySmall,
@@ -399,6 +406,7 @@ private fun EventsListPreview() {
                     date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(5)
                 )
             ),
+            selectedTab = com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING,
             onDeleteEvent = {},
             onEditEvent = {}
         )
@@ -416,6 +424,7 @@ private fun EventItemPreview() {
                 description = "Annual celebration with friends and family",
                 date = System.currentTimeMillis()
             ),
+            isPastTab = false,
             onDelete = {},
             onEdit = {}
         )

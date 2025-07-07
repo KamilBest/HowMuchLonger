@@ -35,11 +35,3 @@ fun Event.toEntity(): EventEntity {
         type = type
     )
 }
-
-class EventTypeConverter {
-    @TypeConverter
-    fun fromEventType(type: EventType): String = type.name
-
-    @TypeConverter
-    fun toEventType(value: String): EventType = EventType.valueOf(value)
-}

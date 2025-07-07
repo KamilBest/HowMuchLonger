@@ -5,12 +5,14 @@ import com.icyapps.howmuchlonger.domain.repository.EventRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
-class GetEventsUseCase @Inject constructor(
-    private val repository: EventRepository
+class GetAllEventsUseCase @Inject constructor(
+    private val eventRepository: EventRepository
 ) {
     suspend operator fun invoke(
         year: Int,
         countryCode: String,
         includeHolidays: Boolean = true
-    ): Flow<List<Event>> = repository.getAllEvents(year, countryCode, includeHolidays)
+    ): Flow<List<Event>> {
+        return eventRepository.getAllEvents(year, countryCode, includeHolidays)
+    }
 } 

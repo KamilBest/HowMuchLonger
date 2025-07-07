@@ -40,10 +40,12 @@ class GetEventsUseCaseTest {
     @Test
     fun `invoke returns flow of events from repository`() = runTest {
         // Given
-        coEvery { repository.getAllEvents() } returns flowOf(testEvents)
+        val year = 2023
+        val countryCode = "US"
+        coEvery { repository.getAllEvents(year, countryCode, true) } returns flowOf(testEvents)
 
         // When & Then
-        getEventsUseCase().test {
+        getEventsUseCase(year, countryCode).test {
             val result = awaitItem()
             assertEquals(2, result.size)
             assertEquals(testEvents[0], result[0])
@@ -55,12 +57,30 @@ class GetEventsUseCaseTest {
     @Test
     fun `invoke returns empty list when repository returns empty list`() = runTest {
         // Given
-        coEvery { repository.getAllEvents() } returns flowOf(emptyList())
+        val year = 2023
+        val countryCode = "US"
+        coEvery { repository.getAllEvents(year, countryCode, true) } returns flowOf(emptyList())
 
         // When & Then
-        getEventsUseCase().test {
+        getEventsUseCase(year, countryCode).test {
             val result = awaitItem()
             assertEquals(0, result.size)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `invoke with includeHolidays false calls repository correctly`() = runTest {
+        // Given
+        val year = 2023
+        val countryCode = "US"
+        val includeHolidays = false
+        coEvery { repository.getAllEvents(year, countryCode, includeHolidays) } returns flowOf(testEvents)
+
+        // When & Then
+        getEventsUseCase(year, countryCode, includeHolidays).test {
+            val result = awaitItem()
+            assertEquals(2, result.size)
             awaitComplete()
         }
     }

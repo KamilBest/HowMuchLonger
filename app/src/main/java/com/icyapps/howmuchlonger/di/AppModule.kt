@@ -6,6 +6,11 @@ import com.icyapps.howmuchlonger.data.local.EventDao
 import com.icyapps.howmuchlonger.data.local.EventDatabase
 import com.icyapps.howmuchlonger.data.repository.EventRepositoryImpl
 import com.icyapps.howmuchlonger.domain.repository.EventRepository
+import com.icyapps.howmuchlonger.data.model.PublicHolidayApi
+import com.icyapps.howmuchlonger.data.source.PublicHolidayDataSource
+import com.icyapps.howmuchlonger.data.source.PublicHolidayApiDataSource
+import com.icyapps.howmuchlonger.data.store.PublicHolidayDataStore
+import com.icyapps.howmuchlonger.data.store.PublicHolidayRoomDataStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -35,10 +40,29 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideEventDataStore(eventDao: EventDao): com.icyapps.howmuchlonger.data.local.EventDataStore {
+        return com.icyapps.howmuchlonger.data.local.EventRoomDataStore(eventDao)
+    }
+
+    @Provides
+    @Singleton
     fun provideEventRepository(
-        eventDao: EventDao,
-        publicHolidayApi: com.icyapps.howmuchlonger.data.model.PublicHolidayApi
+        eventDataStore: com.icyapps.howmuchlonger.data.local.EventDataStore,
+        publicHolidayDataSource: PublicHolidayDataSource,
+        publicHolidayDataStore: PublicHolidayDataStore
     ): EventRepository {
-        return EventRepositoryImpl(eventDao, publicHolidayApi)
+        return EventRepositoryImpl(eventDataStore, publicHolidayDataSource, publicHolidayDataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun providePublicHolidayDataSource(publicHolidayApi: PublicHolidayApi): PublicHolidayDataSource {
+        return PublicHolidayApiDataSource(publicHolidayApi)
+    }
+
+    @Provides
+    @Singleton
+    fun providePublicHolidayDataStore(eventDao: EventDao): PublicHolidayDataStore {
+        return PublicHolidayRoomDataStore(eventDao)
     }
 } 

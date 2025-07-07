@@ -15,10 +15,11 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import java.util.Locale
 import java.util.Calendar
+import com.icyapps.howmuchlonger.domain.usecase.GetAllEventsUseCase
 
 @HiltViewModel
 class EventListViewModel @Inject constructor(
-    private val eventRepository: EventRepository,
+    private val getAllEventsUseCase: GetAllEventsUseCase,
     private val deleteEventUseCase: DeleteEventUseCase
 ) : ViewModel() {
 
@@ -26,8 +27,8 @@ class EventListViewModel @Inject constructor(
     val state: StateFlow<EventListState> = _state.asStateFlow()
 
     private var allEvents: List<Event> = emptyList()
-    private var currentTime: Long = 0
     private var selectedTab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab = com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING
+    private var includeHolidays: Boolean = true
 
     fun processIntent(intent: EventListIntent) {
         when (intent) {
@@ -43,12 +44,9 @@ class EventListViewModel @Inject constructor(
             try {
                 val year = Calendar.getInstance().get(Calendar.YEAR)
                 val countryCode = Locale.getDefault().country
-                eventRepository.refreshHolidaysIfNeeded(year, countryCode)
-
-                eventRepository.getAllEvents().collect { events ->
+                getAllEventsUseCase(year, countryCode, includeHolidays).collect { events ->
                     allEvents = events
-                    currentTime = System.currentTimeMillis()
-                    val filteredEvents = filterEvents(selectedTab, allEvents, currentTime)
+                    val filteredEvents = filterEvents(selectedTab, allEvents)
                     _state.value = EventListState.Success(
                         events = filteredEvents,
                         selectedTab = selectedTab
@@ -62,7 +60,7 @@ class EventListViewModel @Inject constructor(
 
     private fun switchTab(tab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab) {
         selectedTab = tab
-        val filteredEvents = filterEvents(selectedTab, allEvents, currentTime)
+        val filteredEvents = filterEvents(selectedTab, allEvents)
         val currentState = _state.value
         if (currentState is EventListState.Success) {
             _state.value = currentState.copy(
@@ -72,7 +70,8 @@ class EventListViewModel @Inject constructor(
         }
     }
 
-    private fun filterEvents(tab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab, events: List<Event>, now: Long): List<Event> {
+    private fun filterEvents(tab: com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab, events: List<Event>): List<Event> {
+        val now = System.currentTimeMillis()
         return when (tab) {
             com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING -> events.filter { it.date > now }.sortedBy { it.date }
             com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST -> events.filter { it.date <= now }.sortedByDescending { it.date }

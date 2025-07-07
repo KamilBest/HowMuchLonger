@@ -4,7 +4,6 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.icyapps.howmuchlonger.data.model.EventEntity
-import com.icyapps.howmuchlonger.data.model.EventTypeConverter
 
 @Database(
     entities = [EventEntity::class],

@@ -13,7 +13,7 @@ object DurationFormatter {
         locale: Locale = Locale.getDefault(),
         showSeconds: Boolean = true
     ): String {
-        if (durationInMillis <= 0) return "EVENT PAST"
+        if (durationInMillis <= 0) return "0s"
 
         val days = TimeUnit.MILLISECONDS.toDays(durationInMillis)
         val hours = TimeUnit.MILLISECONDS.toHours(durationInMillis) % 24
