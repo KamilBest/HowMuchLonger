@@ -1,5 +1,6 @@
 package com.icyapps.howmuchlonger.ui.screen.eventlist
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,13 +12,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -26,8 +25,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -45,6 +44,7 @@ import com.icyapps.howmuchlonger.ui.components.CountdownText
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
+import com.icyapps.howmuchlonger.ui.theme.Background
 import com.icyapps.howmuchlonger.ui.theme.ContrailOneTypography
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.util.concurrent.TimeUnit
@@ -128,16 +128,34 @@ private fun TabButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp)),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-            contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    ) {
-        Text(text = text, style = ContrailOneTypography, modifier = Modifier.padding(8.dp))
+    if (selected) {
+        Button(
+            onClick = onClick,
+            modifier = modifier.clip(RoundedCornerShape(8.dp)),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            )
+        ) {
+            Text(text = text, style = ContrailOneTypography, modifier = Modifier.padding(8.dp))
+        }
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier.clip(RoundedCornerShape(8.dp)),
+            border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = Background,
+                contentColor = MaterialTheme.colorScheme.primary
+            )
+        ) {
+            Text(
+                text = text,
+                color = MaterialTheme.colorScheme.primary,
+                style = ContrailOneTypography,
+                modifier = Modifier.padding(8.dp)
+            )
+        }
     }
 }
 
@@ -248,7 +266,7 @@ private fun EventsList(
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        
+
                         ClosestEventCard(
                             event = events.first(),
                             onDelete = { onDeleteEvent(events.first().id) },
@@ -256,7 +274,7 @@ private fun EventsList(
                         )
                     }
                 }
-                
+
                 // Show remaining events under "Next Events" label
                 if (events.size > 1) {
                     item {
@@ -266,7 +284,7 @@ private fun EventsList(
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
-                    
+
                     items(events.drop(1)) { event ->
                         EventItem(
                             event = event,
