@@ -51,7 +51,8 @@ class AddEventViewModel @Inject constructor(
         if (eventId == null) {
             _state.value = AddEventState(
                 date = getDefaultDate(true),
-                includeTime = true
+                includeTime = true,
+                eventType = com.icyapps.howmuchlonger.domain.model.EventType.Normal
             )
         } else {
             _state.value = _state.value.copy(isLoading = true)
@@ -63,6 +64,7 @@ class AddEventViewModel @Inject constructor(
                         title = event.name,
                         description = event.description,
                         date = event.date,
+                        eventType = event.type,
                         isLoading = false
                     )
                 } else {

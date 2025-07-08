@@ -50,6 +50,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import androidx.compose.foundation.BorderStroke
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +72,11 @@ fun AddEventScreen(
         topBar = {
             AddEventTopBar(
                 isEditMode = state.eventId != null,
-                onNavigateBack = onNavigateBack
+                eventType = state.eventType,
+                onNavigateBack = onNavigateBack,
+                onDelete = if (state.eventId != null && state.eventType == com.icyapps.howmuchlonger.domain.model.EventType.Normal) {
+                    { onProcessIntent(AddEventIntent.DeleteEvent) }
+                } else null
             )
         }
     ) { paddingValues ->
@@ -98,10 +103,37 @@ fun AddEventScreen(
 @Composable
 private fun AddEventTopBar(
     isEditMode: Boolean,
-    onNavigateBack: () -> Unit
+    eventType: com.icyapps.howmuchlonger.domain.model.EventType = com.icyapps.howmuchlonger.domain.model.EventType.Normal,
+    onNavigateBack: () -> Unit,
+    onDelete: (() -> Unit)? = null
 ) {
     TopAppBar(
-        title = { Text(if (isEditMode) "Edit Event" else "Add New Event") },
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    if (isEditMode) "Edit Event" else "Add New Event",
+                    modifier = Modifier.weight(1f)
+                )
+                if (isEditMode && eventType == com.icyapps.howmuchlonger.domain.model.EventType.Normal && onDelete != null) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onDelete,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = "Delete",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
                 Icon(Icons.Default.ArrowBack, contentDescription = "Back")

@@ -238,7 +238,8 @@ private fun EventsList(
                     EventItem(
                         event = event,
                         isPastTab = false,
-                        onEdit = { onEditEvent(event.id) }
+                        onEdit = { onEditEvent(event.id) },
+                        onDelete = { onDeleteEvent(event.id) }
                     )
                 }
             }
@@ -247,7 +248,8 @@ private fun EventsList(
                 EventItem(
                     event = event,
                     isPastTab = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST,
-                    onEdit = { onEditEvent(event.id) }
+                    onEdit = { onEditEvent(event.id) },
+                    onDelete = { onDeleteEvent(event.id) }
                 )
             }
         }
@@ -259,7 +261,8 @@ private fun EventsList(
 private fun EventItem(
     event: Event,
     isPastTab: Boolean,
-    onEdit: () -> Unit = {}
+    onEdit: () -> Unit = {},
+    onDelete: (() -> Unit)? = null
 ) {
     val formattedDate = remember(event.date) {
         val formatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.getDefault())
@@ -289,6 +292,22 @@ private fun EventItem(
                     text = event.name,
                     style = MaterialTheme.typography.titleMedium
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                if (event.type == EventType.Normal && onDelete != null) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onDelete,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Text(
+                            text = "Delete",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
             Text(
                 text = event.description,
