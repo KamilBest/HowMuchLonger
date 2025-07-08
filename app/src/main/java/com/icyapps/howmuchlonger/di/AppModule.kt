@@ -31,7 +31,7 @@ object AppModule {
             context,
             EventDatabase::class.java,
             "event_database"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
 
     @Provides

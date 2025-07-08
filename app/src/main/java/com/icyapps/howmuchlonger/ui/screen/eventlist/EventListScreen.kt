@@ -48,6 +48,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.draw.clip
 import com.icyapps.howmuchlonger.domain.model.EventType
 import com.icyapps.howmuchlonger.ui.theme.HolidayEventCardBackground
@@ -274,6 +275,7 @@ private fun EventItem(
         EventType.Normal -> MaterialTheme.colorScheme.surfaceVariant
         EventType.Holiday -> HolidayEventCardBackground
     }
+    val descriptionHeight = 20.dp // Reserve space for description
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -309,10 +311,15 @@ private fun EventItem(
                     }
                 }
             }
-            Text(
-                text = event.description,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            if (event.type == EventType.Normal) {
+                Text(
+                    text = event.description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.heightIn(min = descriptionHeight)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(descriptionHeight))
+            }
             Spacer(modifier = Modifier.height(4.dp))
 
             CountdownText(
