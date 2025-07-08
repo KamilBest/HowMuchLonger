@@ -1,9 +1,10 @@
 package com.icyapps.howmuchlonger.data.repository
 
-import com.icyapps.howmuchlonger.data.local.EventDao
+import com.icyapps.howmuchlonger.data.local.EventDataStore
 import com.icyapps.howmuchlonger.data.model.EventEntity
 import com.icyapps.howmuchlonger.data.model.toDomainModel
 import com.icyapps.howmuchlonger.domain.model.Event
+import com.icyapps.howmuchlonger.domain.model.EventType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -16,24 +17,32 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import com.icyapps.howmuchlonger.data.source.PublicHolidayDataSource
+import com.icyapps.howmuchlonger.data.store.PublicHolidayDataStore
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 
 class EventRepositoryImplTest {
 
-    private lateinit var eventDao: EventDao
+    private lateinit var eventDataStore: EventDataStore
+    private lateinit var publicHolidayDataSource: PublicHolidayDataSource
+    private lateinit var publicHolidayDataStore: PublicHolidayDataStore
     private lateinit var repository: EventRepositoryImpl
 
     private val testEvent = Event(
         id = 1L,
         name = "Test Event",
         description = "Test Description",
-        date = 1672531200000 // 2023-01-01
+        date = 1672531200000, // 2023-01-01
+        type = EventType.Normal
     )
 
     private val testEventEntity = EventEntity(
         id = 1L,
         name = "Test Event",
         description = "Test Description",
-        date = 1672531200000 // 2023-01-01
+        date = 1672531200000, // 2023-01-01
+        type = EventType.Normal
     )
 
     private val testEventsList = listOf(
@@ -42,23 +51,26 @@ class EventRepositoryImplTest {
             id = 2L,
             name = "Test Event 2",
             description = "Test Description 2",
-            date = 1675209600000 // 2023-02-01
+            date = 1675209600000, // 2023-02-01
+            type = EventType.Normal
         )
     )
 
     @Before
     fun setup() {
-        eventDao = mockk()
-        repository = EventRepositoryImpl(eventDao)
+        eventDataStore = mockk()
+        publicHolidayDataSource = mockk()
+        publicHolidayDataStore = mockk()
+        repository = EventRepositoryImpl(eventDataStore, publicHolidayDataSource, publicHolidayDataStore)
     }
 
     @Test
     fun `getAllEvents returns mapped domain models`() = runTest {
         // Given
-        every { eventDao.getAllEvents() } returns flowOf(testEventsList)
+        every { eventDataStore.getAllEvents() } returns flowOf(testEventsList)
 
         // When
-        val result = repository.getAllEvents().first()
+        val result = repository.getCustomEvents().first()
 
         // Then
         assertEquals(2, result.size)
@@ -69,7 +81,7 @@ class EventRepositoryImplTest {
     @Test
     fun `getEventById returns mapped domain model when event exists`() = runTest {
         // Given
-        coEvery { eventDao.getEventById(1L) } returns testEventEntity
+        coEvery { eventDataStore.getEventById(1L) } returns testEventEntity
 
         // When
         val result = repository.getEventById(1L)
@@ -81,7 +93,7 @@ class EventRepositoryImplTest {
     @Test
     fun `getEventById returns null when event does not exist`() = runTest {
         // Given
-        coEvery { eventDao.getEventById(999L) } returns null
+        coEvery { eventDataStore.getEventById(999L) } returns null
 
         // When
         val result = repository.getEventById(999L)
@@ -91,10 +103,10 @@ class EventRepositoryImplTest {
     }
 
     @Test
-    fun `insertEvent calls dao and returns id`() = runTest {
+    fun `insertEvent calls dataStore and returns id`() = runTest {
         // Given
         val eventSlot = slot<EventEntity>()
-        coEvery { eventDao.insertEvent(capture(eventSlot)) } returns 1L
+        coEvery { eventDataStore.insertEvent(capture(eventSlot)) } returns 1L
 
         // When
         val result = repository.insertEvent(testEvent)
@@ -107,10 +119,10 @@ class EventRepositoryImplTest {
     }
 
     @Test
-    fun `updateEvent calls dao with correct entity`() = runTest {
+    fun `updateEvent calls dataStore with correct entity`() = runTest {
         // Given
         val eventSlot = slot<EventEntity>()
-        coEvery { eventDao.updateEvent(capture(eventSlot)) } returns Unit
+        coEvery { eventDataStore.updateEvent(capture(eventSlot)) } returns Unit
 
         // When
         repository.updateEvent(testEvent)
@@ -123,10 +135,10 @@ class EventRepositoryImplTest {
     }
 
     @Test
-    fun `deleteEvent calls dao with correct entity`() = runTest {
+    fun `deleteEvent calls dataStore with correct entity`() = runTest {
         // Given
         val eventSlot = slot<EventEntity>()
-        coEvery { eventDao.deleteEvent(capture(eventSlot)) } returns Unit
+        coEvery { eventDataStore.deleteEvent(capture(eventSlot)) } returns Unit
 
         // When
         repository.deleteEvent(testEvent)
@@ -141,7 +153,7 @@ class EventRepositoryImplTest {
     @Test
     fun `getTop3Events returns mapped domain models`() = runTest {
         // Given
-        every { eventDao.getTop3Events() } returns flowOf(testEventsList)
+        every { eventDataStore.getTop3Events() } returns flowOf(testEventsList)
 
         // When
         val result = repository.getTop3Events().first()
@@ -150,5 +162,86 @@ class EventRepositoryImplTest {
         assertEquals(2, result.size)
         assertEquals(testEventsList[0].toDomainModel(), result[0])
         assertEquals(testEventsList[1].toDomainModel(), result[1])
+    }
+
+    @Test
+    fun `getHolidays returns cached holidays if present`() = runTest {
+        val holidayEntity = testEventEntity.copy(type = EventType.Holiday)
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns listOf(holidayEntity)
+        val flow = repository.getAllEvents(2023, "PL", true)
+        val result = flow.first()
+        assertEquals(listOf(holidayEntity.toDomainModel()), result)
+    }
+
+    @Test
+    fun `getHolidays fetches from API and caches if not present`() = runTest {
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns emptyList() andThen listOf(testEventEntity.copy(type = EventType.Holiday))
+        coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } returns listOf(
+            com.icyapps.howmuchlonger.data.model.PublicHolidayDto(
+                date = "2023-01-01",
+                localName = "Holiday",
+                name = "Holiday Name",
+                countryCode = "PL",
+                fixed = true,
+                global = true,
+                counties = null,
+                launchYear = 2023,
+                types = listOf("Public")
+            )
+        )
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+        val flow = repository.getAllEvents(2023, "PL", true)
+        val result = flow.first()
+        assertEquals(EventType.Holiday, result.first().type)
+    }
+
+    @Test
+    fun `getCustomEvents filters only custom events`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(listOf(
+            testEventEntity.copy(type = EventType.Normal),
+            testEventEntity.copy(type = EventType.Holiday)
+        ))
+        val result = repository.getCustomEvents().first()
+        assertTrue(result.all { it.type == EventType.Normal })
+    }
+
+    @Test
+    fun `getHolidayEvents filters only holiday events`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(listOf(
+            testEventEntity.copy(type = EventType.Normal),
+            testEventEntity.copy(type = EventType.Holiday)
+        ))
+        val result = repository.getHolidayEvents().first()
+        assertTrue(result.all { it.type == EventType.Holiday })
+    }
+
+    @Test
+    fun `getAllEvents returns empty list if no events`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        val result = repository.getCustomEvents().first()
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `getAllEvents propagates data store error`() = runTest {
+        every { eventDataStore.getAllEvents() } throws RuntimeException("DataStore error")
+        try {
+            repository.getCustomEvents().first()
+            fail("Exception expected")
+        } catch (e: Exception) {
+            assertEquals("DataStore error", e.message)
+        }
+    }
+
+    @Test
+    fun `getHolidays propagates API error`() = runTest {
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } throws RuntimeException("API error")
+        try {
+            repository.getAllEvents(2023, "PL", true).first()
+            fail("Exception expected")
+        } catch (e: Exception) {
+            assertEquals("API error", e.message)
+        }
     }
 }
