@@ -51,6 +51,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.draw.clip
 import com.icyapps.howmuchlonger.domain.model.EventType
 import com.icyapps.howmuchlonger.ui.theme.HolidayEventCardBackground
+import com.icyapps.howmuchlonger.ui.theme.PastEventCardBackground
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,13 +214,42 @@ private fun EventsList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(events) { event ->
-            EventItem(
-                event = event,
-                isPastTab = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST,
-                onDelete = { onDeleteEvent(event.id) },
-                onEdit = { onEditEvent(event.id) }
-            )
+        if (events.isNotEmpty() && selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.UPCOMING) {
+            item {
+                Text(
+                    text = "Closest",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                ClosestEventCard(
+                    event = events.first(),
+                    onEdit = { onEditEvent(events.first().id) }
+                )
+            }
+            if (events.size > 1) {
+                item {
+                    Text(
+                        text = "Next events",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                    )
+                }
+                items(events.drop(1)) { event ->
+                    EventItem(
+                        event = event,
+                        isPastTab = false,
+                        onEdit = { onEditEvent(event.id) }
+                    )
+                }
+            }
+        } else {
+            items(events) { event ->
+                EventItem(
+                    event = event,
+                    isPastTab = selectedTab == com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab.PAST,
+                    onEdit = { onEditEvent(event.id) }
+                )
+            }
         }
     }
 }
@@ -229,7 +259,6 @@ private fun EventsList(
 private fun EventItem(
     event: Event,
     isPastTab: Boolean,
-    onDelete: () -> Unit,
     onEdit: () -> Unit = {}
 ) {
     val formattedDate = remember(event.date) {
@@ -292,12 +321,19 @@ private fun ClosestEventCard(
             .atZone(ZoneId.systemDefault())
             .format(formatter)
     }
+    val now = System.currentTimeMillis()
+    val isPast = event.date < now
+    val containerColor = when {
+        isPast -> PastEventCardBackground
+        event.type == EventType.Holiday -> HolidayEventCardBackground
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = containerColor
         ),
         shape = RoundedCornerShape(20.dp),
         onClick = onEdit
@@ -320,6 +356,7 @@ private fun ClosestEventCard(
 
             CountdownText(
                 targetTimeInMs = event.date,
+                isPastTab = isPast,
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
@@ -425,7 +462,6 @@ private fun EventItemPreview() {
                 date = System.currentTimeMillis()
             ),
             isPastTab = false,
-            onDelete = {},
             onEdit = {}
         )
     }

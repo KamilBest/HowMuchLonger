@@ -20,6 +20,14 @@ object DurationFormatter {
         val minutes = TimeUnit.MILLISECONDS.toMinutes(durationInMillis) % 60
         val seconds = TimeUnit.MILLISECONDS.toSeconds(durationInMillis) % 60
 
+        // For durations under 1 hour, show both minutes and seconds
+        if (showSeconds && days == 0L && hours == 0L) {
+            return when {
+                minutes > 0 -> "${minutes}m ${seconds}s"
+                else -> "${seconds}s"
+            }
+        }
+
         val measures = buildList {
             if (days > 0) add(Measure(days, MeasureUnit.DAY))
             if (hours > 0) add(Measure(hours, MeasureUnit.HOUR))
