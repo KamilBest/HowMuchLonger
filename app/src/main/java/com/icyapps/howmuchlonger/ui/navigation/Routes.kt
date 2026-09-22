@@ -1,8 +1,15 @@
 package com.icyapps.howmuchlonger.ui.navigation
 
-import com.icyapps.howmuchlonger.domain.model.Event
+import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
 
-sealed interface Routes {
+sealed interface Routes : NavKey {
+    @Serializable
     data object EventsList : Routes
-    data class AddEditEvent(val eventId: Long? = null) : Routes
+
+    @Serializable
+    data class AddEditEvent(
+        val eventId: Long? = null,
+        val initialDate: Long? = null
+    ) : Routes
 }

@@ -31,7 +31,7 @@ object AppModule {
             context,
             EventDatabase::class.java,
             "event_database"
-        ).fallbackToDestructiveMigration().build()
+        ).addMigrations(EventDatabase.MIGRATION_2_3, EventDatabase.MIGRATION_3_4).build()
     }
 
     @Provides
@@ -65,4 +65,4 @@ object AppModule {
     fun providePublicHolidayDataStore(eventDao: EventDao): PublicHolidayDataStore {
         return PublicHolidayRoomDataStore(eventDao)
     }
-} 
+}

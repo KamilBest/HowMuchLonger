@@ -2,6 +2,7 @@ package com.icyapps.howmuchlonger.data.repository
 
 import com.icyapps.howmuchlonger.data.local.EventDataStore
 import com.icyapps.howmuchlonger.data.model.EventEntity
+import com.icyapps.howmuchlonger.data.model.PublicHolidayDto
 import com.icyapps.howmuchlonger.data.model.toDomainModel
 import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.domain.model.EventType
@@ -12,7 +13,10 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -167,15 +171,18 @@ class EventRepositoryImplTest {
     @Test
     fun `getHolidays returns cached holidays if present`() = runTest {
         val holidayEntity = testEventEntity.copy(type = EventType.Holiday)
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns listOf(holidayEntity)
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns listOf(holidayEntity)
         val flow = repository.getAllEvents(2023, "PL", true)
         val result = flow.first()
         assertEquals(listOf(holidayEntity.toDomainModel()), result)
+        coVerify(exactly = 0) { publicHolidayDataSource.getPublicHolidays(any(), any()) }
     }
 
     @Test
     fun `getHolidays fetches from API and caches if not present`() = runTest {
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns emptyList() andThen listOf(testEventEntity.copy(type = EventType.Holiday))
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
         coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } returns listOf(
             com.icyapps.howmuchlonger.data.model.PublicHolidayDto(
                 date = "2023-01-01",
@@ -193,6 +200,56 @@ class EventRepositoryImplTest {
         val flow = repository.getAllEvents(2023, "PL", true)
         val result = flow.first()
         assertEquals(EventType.Holiday, result.first().type)
+    }
+
+    @Test
+    fun `getHolidays calls API only once for repeated year requests`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(
+            com.icyapps.howmuchlonger.data.model.PublicHolidayDto(
+                date = "2027-01-01",
+                localName = "Nowy Rok",
+                name = "New Year's Day",
+                countryCode = "PL",
+                fixed = true,
+                global = true,
+                counties = null,
+                launchYear = null,
+                types = listOf("Public")
+            )
+        )
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        repository.getAllEvents(2027, "PL", true).first()
+        repository.getAllEvents(2027, "PL", true).first()
+
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+        coVerify(exactly = 1) { publicHolidayDataStore.insertHolidays(any()) }
+    }
+
+    @Test
+    fun `concurrent holiday requests share one API call`() = runTest {
+        val apiStarted = CompletableDeferred<Unit>()
+        val releaseApi = CompletableDeferred<Unit>()
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } coAnswers {
+            apiStarted.complete(Unit)
+            releaseApi.await()
+            emptyList()
+        }
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        val firstRequest = async { repository.getAllEvents(2027, "PL", true).first() }
+        apiStarted.await()
+        val secondRequest = async { repository.getAllEvents(2027, "PL", true).first() }
+        yield()
+        releaseApi.complete(Unit)
+        firstRequest.await()
+        secondRequest.await()
+
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
     }
 
     @Test
@@ -234,14 +291,145 @@ class EventRepositoryImplTest {
     }
 
     @Test
-    fun `getHolidays propagates API error`() = runTest {
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any()) } returns emptyList()
+    fun `getHolidays keeps custom events available when API fails`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
         coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } throws RuntimeException("API error")
-        try {
-            repository.getAllEvents(2023, "PL", true).first()
-            fail("Exception expected")
-        } catch (e: Exception) {
-            assertEquals("API error", e.message)
+        assertTrue(repository.getAllEvents(2023, "PL", true).first().isEmpty())
+    }
+
+    @Test
+    fun `getAllEvents without holidays never reads holiday sources`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(listOf(testEventEntity))
+
+        val result = repository.getAllEvents(2027, "PL", false).first()
+
+        assertEquals(listOf(testEvent), result)
+        coVerify(exactly = 0) { publicHolidayDataStore.getHolidaysBetween(any(), any(), any()) }
+        coVerify(exactly = 0) { publicHolidayDataSource.getPublicHolidays(any(), any()) }
+    }
+
+    @Test
+    fun `country code is normalized to uppercase`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns emptyList()
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        repository.getAllEvents(2027, "pl", true).first()
+
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+    }
+
+    @Test
+    fun `invalid country code falls back to Poland`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns emptyList()
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        repository.getAllEvents(2027, "POL", true).first()
+
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+    }
+
+    @Test
+    fun `regional holidays are excluded from API result`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(
+            holidayDto("2027-01-01", "Global holiday", global = true),
+            holidayDto("2027-02-01", "Regional holiday", global = false)
+        )
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        val result = repository.getAllEvents(2027, "PL", true).first()
+
+        assertEquals(listOf("Global holiday"), result.map { it.name })
+        coVerify {
+            publicHolidayDataStore.insertHolidays(match { entities ->
+                entities.size == 1 && entities.single().name == "Global holiday"
+            })
         }
     }
+
+    @Test
+    fun `duplicate holidays from API are stored once`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        val duplicate = holidayDto("2027-01-01", "Nowy Rok")
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(duplicate, duplicate)
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        val result = repository.getAllEvents(2027, "PL", true).first()
+
+        assertEquals(1, result.size)
+        coVerify { publicHolidayDataStore.insertHolidays(match { it.size == 1 }) }
+    }
+
+    @Test
+    fun `API failure is not cached and next request retries`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } throws
+            RuntimeException("offline") andThen listOf(holidayDto("2027-01-01", "Nowy Rok"))
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        val first = repository.getAllEvents(2027, "PL", true).first()
+        val second = repository.getAllEvents(2027, "PL", true).first()
+
+        assertTrue(first.isEmpty())
+        assertEquals(listOf("Nowy Rok"), second.map { it.name })
+        coVerify(exactly = 2) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+    }
+
+    @Test
+    fun `holiday cache is isolated by year and country`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), any()) } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } returns emptyList()
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
+
+        repository.getAllEvents(2027, "PL", true).first()
+        repository.getAllEvents(2028, "PL", true).first()
+        repository.getAllEvents(2027, "DE", true).first()
+
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2028, "PL") }
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "DE") }
+    }
+
+    @Test
+    fun `custom events and holidays are merged chronologically`() = runTest {
+        val laterCustom = testEventEntity.copy(date = 1_800_000_000_000L)
+        val earlierHoliday = testEventEntity.copy(
+            id = 2L,
+            name = "Holiday",
+            date = 1_700_000_000_000L,
+            type = EventType.Holiday,
+            countryCode = "PL"
+        )
+        every { eventDataStore.getAllEvents() } returns flowOf(listOf(laterCustom))
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns listOf(earlierHoliday)
+
+        val result = repository.getAllEvents(2027, "PL", true).first()
+
+        assertEquals(listOf("Holiday", "Test Event"), result.map { it.name })
+    }
+
+    private fun holidayDto(
+        date: String,
+        localName: String,
+        global: Boolean = true
+    ) = PublicHolidayDto(
+        date = date,
+        localName = localName,
+        name = "$localName EN",
+        countryCode = "PL",
+        fixed = true,
+        global = global,
+        counties = null,
+        launchYear = null,
+        types = listOf("Public")
+    )
 }

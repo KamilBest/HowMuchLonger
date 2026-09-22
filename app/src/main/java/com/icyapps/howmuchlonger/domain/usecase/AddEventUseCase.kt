@@ -7,13 +7,19 @@ import javax.inject.Inject
 class AddEventUseCase @Inject constructor(
     private val repository: EventRepository
 ) {
-    suspend operator fun invoke(name: String, description: String, date: Long): Long {
+    suspend operator fun invoke(
+        name: String,
+        description: String,
+        date: Long,
+        endDate: Long? = null
+    ): Long {
         return repository.insertEvent(
             Event(
                 name = name,
                 description = description,
-                date = date
+                date = date,
+                endDate = endDate
             )
         )
     }
-} 
+}

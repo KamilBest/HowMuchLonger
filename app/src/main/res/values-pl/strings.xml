@@ -1,0 +1,47 @@
+<resources>
+    <string name="app_name">HowMuchLonger</string>
+    <string name="app_logo">Logo HowMuchLonger</string>
+    <string name="add_event">Dodaj wydarzenie</string>
+    <string name="edit_event">Edytuj wydarzenie</string>
+    <string name="add_new_event">Dodaj wydarzenie</string>
+    <string name="back">Wstecz</string>
+    <string name="delete">Usuń</string>
+    <string name="delete_event_title">Usunąć wydarzenie?</string>
+    <string name="delete_event_message">Czy na pewno chcesz usunąć „%1$s”? Tej operacji nie można cofnąć.</string>
+    <string name="save_event">Zapisz</string>
+    <string name="event_title_hint">Do czego odliczamy?</string>
+    <string name="event_description_hint">Dodaj szczegóły, które umilą oczekiwanie…</string>
+    <string name="event_date_label">Data</string>
+    <string name="event_date_time_label">Data i godzina</string>
+    <string name="select_date_or_range">Wybierz datę lub zakres dat</string>
+    <string name="select_range_start">Wybierz datę początkową</string>
+    <string name="select_time">Wybierz godzinę</string>
+    <string name="include_time">Uwzględnij godzinę</string>
+    <string name="confirm">OK</string>
+    <string name="cancel">Anuluj</string>
+
+    <string name="upcoming">Nadchodzące</string>
+    <string name="past">Minione</string>
+    <string name="open_calendar">Otwórz kalendarz</string>
+    <string name="filters">Filtry</string>
+    <string name="holiday">Święto</string>
+    <string name="show_holidays">Pokaż święta</string>
+    <string name="closest">Najbliższe</string>
+    <string name="next_events">Kolejne wydarzenia</string>
+    <string name="no_upcoming_events">Brak nadchodzących wydarzeń. Dodaj pierwsze!</string>
+    <string name="no_past_events">Nie ma jeszcze minionych wydarzeń.</string>
+    <string name="no_events_on_day">Brak wydarzeń tego dnia.</string>
+    <string name="event_ended">Zakończone</string>
+    <string name="time_ago">%1$s temu</string>
+    <string name="today">Dzisiaj</string>
+    <string name="ends_in">Kończy się za %1$s</string>
+    <string name="previous_month">Poprzedni miesiąc</string>
+    <string name="next_month">Następny miesiąc</string>
+    <string name="event_legend">Wydarzenie</string>
+    <string name="holiday_legend">Święto</string>
+    <string name="range_legend">Zakres dat</string>
+    <string name="events_on_date">Wydarzenia: %1$s</string>
+    <string name="unknown_error">Coś poszło nie tak. Spróbuj ponownie.</string>
+    <string name="event_not_found">Nie znaleziono wydarzenia.</string>
+    <string name="event_title_empty">Nazwa wydarzenia nie może być pusta.</string>
+</resources>

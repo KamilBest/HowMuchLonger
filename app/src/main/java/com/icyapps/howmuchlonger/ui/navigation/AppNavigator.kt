@@ -6,10 +6,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventScreen
 import com.icyapps.howmuchlonger.ui.screen.addevent.AddEventViewModel
@@ -18,7 +17,7 @@ import com.icyapps.howmuchlonger.ui.screen.eventlist.EventListViewModel
 
 @Composable
 fun AppNavigator() {
-    val backStack = remember { mutableStateListOf<Routes>(Routes.EventsList) }
+    val backStack = rememberNavBackStack(Routes.EventsList)
 
     // Use DisposableEffect to handle cleanup when the composable is disposed
     DisposableEffect(Unit) {
@@ -46,9 +45,9 @@ fun AppNavigator() {
                     val state by viewModel.state.collectAsState()
 
                     EventListScreen(
-                        onNavigateToAddEvent = {
+                        onNavigateToAddEvent = { initialDate ->
                             Log.d("AppNavigator", "onNavigateToAddEvent")
-                            backStack.add(Routes.AddEditEvent())
+                            backStack.add(Routes.AddEditEvent(initialDate = initialDate))
                         },
                         onNavigateToEditEvent = { eventId ->
                             Log.d("AppNavigator", "onNavigateToEditEvent: $eventId")
@@ -64,8 +63,8 @@ fun AppNavigator() {
                     val state by viewModel.state.collectAsState()
 
                     // Always initialize the ViewModel with the eventId (null for create, id for edit)
-                    LaunchedEffect(key.eventId) {
-                        viewModel.initialize(key.eventId)
+                    LaunchedEffect(key.eventId, key.initialDate) {
+                        viewModel.initialize(key.eventId, key.initialDate)
                     }
 
                     // Define the navigation function
@@ -80,6 +79,8 @@ fun AppNavigator() {
                         onProcessIntent = { viewModel.processIntent(it) }
                     )
                 }
+
+                else -> error("Unknown navigation key: $key")
             }
         }
     )

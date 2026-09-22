@@ -27,18 +27,17 @@ class PublicHolidayRoomDataStoreTest {
     }
 
     @Test
-    fun `getHolidaysBetween filters only holidays`() = runTest {
-        coEvery { eventDao.getEventsBetween(0L, 1000L) } returns listOf(holiday, normal)
-        val result = dataStore.getHolidaysBetween(0L, 1000L)
+    fun `getHolidaysBetween delegates country-scoped query`() = runTest {
+        coEvery { eventDao.getHolidaysBetween(0L, 1000L, "PL") } returns listOf(holiday)
+        val result = dataStore.getHolidaysBetween(0L, 1000L, "PL")
         assertEquals(listOf(holiday), result)
     }
 
     @Test
     fun `insertHolidays inserts all holidays`() = runTest {
-        coEvery { eventDao.insertEvent(any()) } returnsMany listOf(1L, 2L)
+        coEvery { eventDao.insertEvents(any()) } returns Unit
         dataStore.insertHolidays(listOf(holiday, normal))
-        coVerify { eventDao.insertEvent(holiday) }
-        coVerify { eventDao.insertEvent(normal) }
+        coVerify { eventDao.insertEvents(listOf(holiday, normal)) }
     }
 
     @Test
@@ -50,26 +49,26 @@ class PublicHolidayRoomDataStoreTest {
 
     @Test
     fun `getHolidaysBetween propagates DAO error`() = runTest {
-        coEvery { eventDao.getEventsBetween(any(), any()) } throws RuntimeException("DAO error")
+        coEvery { eventDao.getHolidaysBetween(any(), any(), any()) } throws RuntimeException("DAO error")
         assertThrows(RuntimeException::class.java) {
-            runTest { dataStore.getHolidaysBetween(0L, 1000L) }
+            runTest { dataStore.getHolidaysBetween(0L, 1000L, "PL") }
         }
     }
 
     @Test
     fun `insertHolidays propagates DAO error`() = runTest {
         val holiday = EventEntity(1L, "Holiday", "Desc", 123L, EventType.Holiday)
-        coEvery { eventDao.insertEvent(holiday) } throws RuntimeException("DAO error")
+        coEvery { eventDao.insertEvents(listOf(holiday)) } throws RuntimeException("DAO error")
         assertThrows(RuntimeException::class.java) {
             runTest { dataStore.insertHolidays(listOf(holiday)) }
         }
     }
 
     @Test
-    fun `insertHolidays with null/edge values`() = runTest {
+    fun `insertHolidays with edge values`() = runTest {
         val edgeHoliday = EventEntity(0L, "", "", 0L, EventType.Holiday)
-        coEvery { eventDao.insertEvent(edgeHoliday) } returns 2L
+        coEvery { eventDao.insertEvents(listOf(edgeHoliday)) } returns Unit
         dataStore.insertHolidays(listOf(edgeHoliday))
-        coVerify { eventDao.insertEvent(edgeHoliday) }
+        coVerify { eventDao.insertEvents(listOf(edgeHoliday)) }
     }
-} 
+}

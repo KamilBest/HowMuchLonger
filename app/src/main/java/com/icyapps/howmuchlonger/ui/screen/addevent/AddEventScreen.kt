@@ -7,17 +7,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,20 +33,26 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.SelectableDates
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import android.util.Log
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.icyapps.howmuchlonger.ui.screen.addevent.intent.AddEventIntent
+import com.icyapps.howmuchlonger.R
 import com.icyapps.howmuchlonger.ui.screen.addevent.model.AddEventState
 import com.icyapps.howmuchlonger.ui.theme.HowMuchLongerTheme
 import java.text.SimpleDateFormat
@@ -51,6 +60,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import androidx.compose.foundation.BorderStroke
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +72,8 @@ fun AddEventScreen(
     state: AddEventState,
     onProcessIntent: (AddEventIntent) -> Unit
 ) {
+    var showDeleteConfirmation by rememberSaveable { mutableStateOf(false) }
+
     // Observe saveCompleted state and handle navigation
     LaunchedEffect(state.saveCompleted) {
         if (state.saveCompleted) {
@@ -75,7 +90,7 @@ fun AddEventScreen(
                 eventType = state.eventType,
                 onNavigateBack = onNavigateBack,
                 onDelete = if (state.eventId != null && state.eventType == com.icyapps.howmuchlonger.domain.model.EventType.Normal) {
-                    { onProcessIntent(AddEventIntent.DeleteEvent) }
+                    { showDeleteConfirmation = true }
                 } else null
             )
         }
@@ -84,7 +99,9 @@ fun AddEventScreen(
             state = state,
             onTitleChange = { onProcessIntent(AddEventIntent.UpdateTitle(it)) },
             onDescriptionChange = { onProcessIntent(AddEventIntent.UpdateDescription(it)) },
-            onDateChange = { onProcessIntent(AddEventIntent.UpdateDate(it)) },
+            onDateRangeChange = { start, end ->
+                onProcessIntent(AddEventIntent.UpdateDateRange(start, end))
+            },
             onToggleIncludeTime = { onProcessIntent(AddEventIntent.ToggleIncludeTime(it)) },
             onShowDatePicker = { onProcessIntent(AddEventIntent.ShowDatePicker) },
             onHideDatePicker = { onProcessIntent(AddEventIntent.HideDatePicker) },
@@ -97,6 +114,72 @@ fun AddEventScreen(
                 .padding(16.dp)
         )
     }
+
+    if (showDeleteConfirmation) {
+        DeleteEventConfirmationDialog(
+            eventName = state.title,
+            onDismiss = { showDeleteConfirmation = false },
+            onConfirm = {
+                showDeleteConfirmation = false
+                onProcessIntent(AddEventIntent.DeleteEvent)
+            }
+        )
+    }
+}
+
+@Composable
+private fun DeleteEventConfirmationDialog(
+    eventName: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            androidx.compose.material3.Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.error.copy(alpha = .1f),
+                contentColor = MaterialTheme.colorScheme.error
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.padding(12.dp).size(24.dp)
+                )
+            }
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.delete_event_title),
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Text(
+                text = stringResource(R.string.delete_event_message, eventName),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                )
+            ) {
+                Text(stringResource(R.string.delete))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,7 +197,7 @@ private fun AddEventTopBar(
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
                 Text(
-                    if (isEditMode) "Edit Event" else "Add New Event",
+                    stringResource(if (isEditMode) R.string.edit_event else R.string.add_new_event),
                     modifier = Modifier.weight(1f)
                 )
                 if (isEditMode && eventType == com.icyapps.howmuchlonger.domain.model.EventType.Normal && onDelete != null) {
@@ -127,7 +210,7 @@ private fun AddEventTopBar(
                         modifier = Modifier.height(32.dp)
                     ) {
                         Text(
-                            text = "Delete",
+                            text = stringResource(R.string.delete),
                             color = MaterialTheme.colorScheme.error
                         )
                     }
@@ -136,7 +219,7 @@ private fun AddEventTopBar(
         },
         navigationIcon = {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
             }
         }
     )
@@ -147,7 +230,7 @@ private fun AddEventForm(
     state: AddEventState,
     onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
-    onDateChange: (Long) -> Unit,
+    onDateRangeChange: (Long, Long?) -> Unit,
     onToggleIncludeTime: (Boolean) -> Unit,
     onShowDatePicker: () -> Unit,
     onHideDatePicker: () -> Unit,
@@ -174,7 +257,8 @@ private fun AddEventForm(
 
         EventDateField(
             date = state.date,
-            onDateSelected = onDateChange,
+            endDate = state.endDate,
+            onDateRangeSelected = onDateRangeChange,
             includeTime = state.includeTime,
             showDatePicker = state.showDatePicker,
             showTimePicker = state.showTimePicker,
@@ -199,7 +283,7 @@ private fun AddEventForm(
             onClick = onSaveClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp)
+                .padding(top = 8.dp)
         )
     }
 }
@@ -213,7 +297,8 @@ private fun EventTitleField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text("Event Title") },
+        label = { Text(stringResource(R.string.event_title_hint)) },
+        singleLine = true,
         modifier = modifier
     )
 }
@@ -227,7 +312,7 @@ private fun EventDescriptionField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text("Description") },
+        label = { Text(stringResource(R.string.event_description_hint)) },
         modifier = modifier,
         minLines = 3
     )
@@ -238,7 +323,8 @@ private fun EventDescriptionField(
 private fun EventDateField(
     modifier: Modifier = Modifier,
     date: Long,
-    onDateSelected: (Long) -> Unit,
+    endDate: Long? = null,
+    onDateRangeSelected: (Long, Long?) -> Unit,
     includeTime: Boolean = true,
     showDatePicker: Boolean = false,
     showTimePicker: Boolean = false,
@@ -277,26 +363,47 @@ private fun EventDateField(
         if (includeTime) SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
         else SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
     }
+    val rangeDateFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
+    val timedRangeStartFormat = remember { SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()) }
 
-    val formattedDate = remember(date, includeTime) {
-        dateFormat.format(Date(date))
+    val formattedDate = remember(date, endDate, includeTime) {
+        if (endDate != null) {
+            val formattedStart = if (includeTime) {
+                timedRangeStartFormat.format(Date(date))
+            } else {
+                rangeDateFormat.format(Date(date))
+            }
+            "$formattedStart – ${rangeDateFormat.format(Date(endDate))}"
+        } else {
+            dateFormat.format(Date(date))
+        }
     }
 
     Column(modifier = modifier) {
         OutlinedTextField(
             value = formattedDate,
             onValueChange = { },
-            label = { Text(if (includeTime) "Date and Time" else "Date") },
+            label = {
+                Text(
+                    stringResource(
+                        if (includeTime) R.string.event_date_time_label
+                        else R.string.event_date_label
+                    )
+                )
+            },
             modifier = Modifier.fillMaxWidth(),
             readOnly = true,
             trailingIcon = {
                 Row {
                     IconButton(onClick = onShowDatePicker) {
-                        Icon(Icons.Default.DateRange, contentDescription = "Select Date")
+                        Icon(Icons.Default.DateRange, contentDescription = stringResource(R.string.select_date_or_range))
                     }
                     if (includeTime) {
                         IconButton(onClick = onShowTimePicker) {
-                            Icon(Icons.Default.Edit, contentDescription = "Select Time")
+                            Icon(
+                                painter = painterResource(R.drawable.ic_schedule),
+                                contentDescription = stringResource(R.string.select_time)
+                            )
                         }
                     }
                 }
@@ -312,54 +419,93 @@ private fun EventDateField(
                 onCheckedChange = onToggleIncludeTime
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Include time")
+            Text(stringResource(R.string.include_time))
         }
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = date)
+        val maxSelectableDate = remember { LocalDate.now().plusYears(1) }
+        val selectableDates = remember(maxSelectableDate) {
+            object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                    val candidate = Instant.ofEpochMilli(utcTimeMillis)
+                        .atZone(ZoneOffset.UTC)
+                        .toLocalDate()
+                    return !candidate.isAfter(maxSelectableDate)
+                }
+
+                override fun isSelectableYear(year: Int): Boolean = year <= maxSelectableDate.year
+            }
+        }
+        val datePickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = pickerDateMillis(date),
+            initialSelectedEndDateMillis = endDate?.let(::pickerDateMillis),
+            selectableDates = selectableDates
+        )
+        val pickerDateFormatter = remember { DateTimeFormatter.ofPattern("dd.MM.yyyy") }
 
         DatePickerDialog(
             onDismissRequest = onHideDatePicker,
             confirmButton = {
                 TextButton(
+                    enabled = datePickerState.selectedStartDateMillis != null,
                     onClick = {
-                        datePickerState.selectedDateMillis?.let { selectedDate ->
-                            // Preserve the time part if includeTime is true
-                            val newDate = if (includeTime) {
-                                val calendar = java.util.Calendar.getInstance()
-                                calendar.timeInMillis = date
-                                val hour = defaultHour
-                                val minute = defaultMinute
-
-                                calendar.timeInMillis = selectedDate
-                                calendar.set(java.util.Calendar.HOUR_OF_DAY, hour)
-                                calendar.set(java.util.Calendar.MINUTE, minute)
-                                calendar.timeInMillis
+                        datePickerState.selectedStartDateMillis?.let { selectedStart ->
+                            val startLocalDate = pickerLocalDate(selectedStart)
+                            val selectedEnd = datePickerState.selectedEndDateMillis
+                            val newStart = if (includeTime) {
+                                startLocalDate
+                                    .atTime(defaultHour, defaultMinute)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .toInstant()
+                                    .toEpochMilli()
                             } else {
-                                val calendar = java.util.Calendar.getInstance()
-                                calendar.timeInMillis = selectedDate
-                                calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-                                calendar.set(java.util.Calendar.MINUTE, 0)
-                                calendar.set(java.util.Calendar.SECOND, 0)
-                                calendar.set(java.util.Calendar.MILLISECOND, 0)
-                                calendar.timeInMillis
+                                localDateMillis(startLocalDate)
                             }
-                            onDateSelected(newDate)
+                            val newEnd = selectedEnd
+                                ?.let(::pickerLocalDate)
+                                ?.let(::localDateMillis)
+                            onDateRangeSelected(newStart, newEnd)
                         }
                         onHideDatePicker()
                     }
                 ) {
-                    Text("OK")
+                    Text(stringResource(R.string.confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onHideDatePicker) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DateRangePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        text = stringResource(R.string.select_date_or_range),
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp)
+                    )
+                },
+                headline = {
+                    val startDateText = datePickerState.selectedStartDateMillis
+                        ?.let(::pickerLocalDate)
+                        ?.format(pickerDateFormatter)
+                    val endDateText = datePickerState.selectedEndDateMillis
+                        ?.let(::pickerLocalDate)
+                        ?.format(pickerDateFormatter)
+                    val selectionText = when {
+                        startDateText == null -> stringResource(R.string.select_range_start)
+                        endDateText == null -> startDateText
+                        else -> "$startDateText – $endDateText"
+                    }
+                    Text(
+                        text = selectionText,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                }
+            )
         }
     }
 
@@ -379,16 +525,16 @@ private fun EventDateField(
                             set(java.util.Calendar.HOUR_OF_DAY, timePickerState.hour)
                             set(java.util.Calendar.MINUTE, timePickerState.minute)
                         }
-                        onDateSelected(newCalendar.timeInMillis)
+                        onDateRangeSelected(newCalendar.timeInMillis, endDate)
                         onHideTimePicker()
                     }
                 ) {
-                    Text("OK")
+                    Text(stringResource(R.string.confirm))
                 }
             },
             dismissButton = {
                 TextButton(onClick = onHideTimePicker) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             },
             text = {
@@ -398,13 +544,32 @@ private fun EventDateField(
     }
 }
 
+private fun pickerDateMillis(timestamp: Long): Long =
+    Instant.ofEpochMilli(timestamp)
+        .atZone(java.time.ZoneId.systemDefault())
+        .toLocalDate()
+        .atStartOfDay(ZoneOffset.UTC)
+        .toInstant()
+        .toEpochMilli()
+
+private fun pickerLocalDate(timestamp: Long): LocalDate =
+    Instant.ofEpochMilli(timestamp).atZone(ZoneOffset.UTC).toLocalDate()
+
+private fun localDateMillis(date: LocalDate): Long =
+    date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
 @Composable
 private fun ErrorMessage(
     message: String,
     modifier: Modifier = Modifier
 ) {
     Text(
-        text = message,
+        text = when (message) {
+            "Event not found" -> stringResource(R.string.event_not_found)
+            "Event title cannot be empty" -> stringResource(R.string.event_title_empty)
+            "Unknown error occurred" -> stringResource(R.string.unknown_error)
+            else -> message
+        },
         color = MaterialTheme.colorScheme.error,
         modifier = modifier
     )
@@ -419,7 +584,7 @@ private fun SaveEventButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 56.dp),
         enabled = enabled
     ) {
         if (isLoading) {
@@ -428,7 +593,7 @@ private fun SaveEventButton(
                 color = MaterialTheme.colorScheme.onPrimary
             )
         } else {
-            Text("Save Event")
+            Text(stringResource(R.string.save_event))
         }
     }
 }
@@ -473,7 +638,7 @@ fun AddEventFormPreview() {
             ),
             onTitleChange = {},
             onDescriptionChange = {},
-            onDateChange = {},
+            onDateRangeChange = { _, _ -> },
             onToggleIncludeTime = {},
             onShowDatePicker = {},
             onHideDatePicker = {},
@@ -515,7 +680,7 @@ fun EventDateFieldPreview() {
     HowMuchLongerTheme {
         EventDateField(
             date = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(15),
-            onDateSelected = {},
+            onDateRangeSelected = { _, _ -> },
             modifier = Modifier.fillMaxWidth()
         )
     }

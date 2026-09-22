@@ -1,6 +1,7 @@
 package com.icyapps.howmuchlonger.domain.usecase
 
 import com.icyapps.howmuchlonger.domain.model.Event
+import com.icyapps.howmuchlonger.domain.model.EventType
 import com.icyapps.howmuchlonger.domain.repository.EventRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -37,5 +38,12 @@ class UpdateEventUseCaseTest {
 
         // Then
         coVerify { repository.updateEvent(testEvent) }
+    }
+
+    @Test
+    fun `invoke does not update a holiday`() = runTest {
+        updateEventUseCase(testEvent.copy(type = EventType.Holiday))
+
+        coVerify(exactly = 0) { repository.updateEvent(any()) }
     }
 }

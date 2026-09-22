@@ -1,6 +1,47 @@
 <resources>
     <string name="app_name">HowMuchLonger</string>
+    <string name="app_logo">HowMuchLonger logo</string>
+    <string name="add_event">Add event</string>
+    <string name="edit_event">Edit event</string>
+    <string name="add_new_event">Add new event</string>
+    <string name="back">Back</string>
+    <string name="delete">Delete</string>
+    <string name="delete_event_title">Delete this event?</string>
+    <string name="delete_event_message">Are you sure you want to delete “%1$s”? This action cannot be undone.</string>
+    <string name="save_event">Save</string>
+    <string name="event_title_hint">What are we counting down to?</string>
+    <string name="event_description_hint">Add details to make the wait more enjoyable…</string>
+    <string name="event_date_label">Date</string>
+    <string name="event_date_time_label">Date and time</string>
+    <string name="select_date_or_range">Select a date or date range</string>
+    <string name="select_range_start">Select a start date</string>
+    <string name="select_time">Select time</string>
+    <string name="include_time">Include time</string>
+    <string name="confirm">OK</string>
+    <string name="cancel">Cancel</string>
 
-    <!-- Event status -->
-    <string name="event_has_passed">Event has passed</string>
+    <string name="upcoming">Upcoming</string>
+    <string name="past">Past</string>
+    <string name="open_calendar">Open calendar</string>
+    <string name="filters">Filters</string>
+    <string name="holiday">Holiday</string>
+    <string name="show_holidays">Show holidays</string>
+    <string name="closest">Closest</string>
+    <string name="next_events">Next events</string>
+    <string name="no_upcoming_events">No upcoming events. Add your first event!</string>
+    <string name="no_past_events">No past events yet.</string>
+    <string name="no_events_on_day">No events on this day.</string>
+    <string name="event_ended">Finished</string>
+    <string name="time_ago">%1$s ago</string>
+    <string name="today">Today</string>
+    <string name="ends_in">Ends in %1$s</string>
+    <string name="previous_month">Previous month</string>
+    <string name="next_month">Next month</string>
+    <string name="event_legend">Event</string>
+    <string name="holiday_legend">Holiday</string>
+    <string name="range_legend">Date range</string>
+    <string name="events_on_date">Events on %1$s</string>
+    <string name="unknown_error">Something went wrong. Please try again.</string>
+    <string name="event_not_found">Event not found.</string>
+    <string name="event_title_empty">Event title cannot be empty.</string>
 </resources>

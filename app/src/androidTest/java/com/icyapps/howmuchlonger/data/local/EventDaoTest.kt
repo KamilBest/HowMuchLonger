@@ -64,6 +64,20 @@ class EventDaoTest {
     }
 
     @Test
+    fun insertAndGetDateRangePreservesEndDate() = runTest {
+        val range = testEvent1.copy(
+            id = 0,
+            endDate = testEvent1.date + 7 * 86_400_000L
+        )
+
+        val eventId = eventDao.insertEvent(range)
+        val loadedEvent = eventDao.getEventById(eventId)
+
+        assertEquals(range.date, loadedEvent?.date)
+        assertEquals(range.endDate, loadedEvent?.endDate)
+    }
+
+    @Test
     fun getEventByIdReturnsNullWhenEventDoesNotExist() = runTest {
         // When
         val loadedEvent = eventDao.getEventById(999L)

@@ -20,6 +20,9 @@ interface EventDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvent(eventEntity: EventEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEvents(events: List<EventEntity>)
+
     @Update
     suspend fun updateEvent(eventEntity: EventEntity)
 
@@ -31,4 +34,14 @@ interface EventDao {
 
     @Query("SELECT * FROM events WHERE date BETWEEN :start AND :end ORDER BY date ASC")
     suspend fun getEventsBetween(start: Long, end: Long): List<EventEntity>
-} 
+
+    @Query(
+        "SELECT * FROM events WHERE type = 'Holiday' AND countryCode = :countryCode " +
+            "AND date >= :start AND date < :endExclusive ORDER BY date ASC"
+    )
+    suspend fun getHolidaysBetween(
+        start: Long,
+        endExclusive: Long,
+        countryCode: String
+    ): List<EventEntity>
+}

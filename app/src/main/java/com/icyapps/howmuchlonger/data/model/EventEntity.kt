@@ -1,19 +1,24 @@
 package com.icyapps.howmuchlonger.data.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.domain.model.EventType
-import androidx.room.TypeConverter
 
-@Entity(tableName = "events")
+@Entity(
+    tableName = "events",
+    indices = [Index(value = ["type", "countryCode", "date", "name"], unique = true)]
+)
 data class EventEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
     val description: String,
     val date: Long,
-    val type: EventType = EventType.Normal
+    val type: EventType = EventType.Normal,
+    val countryCode: String? = null,
+    val endDate: Long? = null
 )
 
 fun EventEntity.toDomainModel(): Event {
@@ -22,7 +27,8 @@ fun EventEntity.toDomainModel(): Event {
         name = name,
         description = description,
         date = date,
-        type = type
+        type = type,
+        endDate = endDate
     )
 }
 
@@ -32,6 +38,7 @@ fun Event.toEntity(): EventEntity {
         name = name,
         description = description,
         date = date,
-        type = type
+        type = type,
+        endDate = endDate
     )
 }

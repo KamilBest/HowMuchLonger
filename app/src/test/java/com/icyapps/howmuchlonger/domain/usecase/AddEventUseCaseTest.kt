@@ -42,4 +42,17 @@ class AddEventUseCaseTest {
         // Then
         assertEquals(expectedId, result)
     }
+
+    @Test
+    fun `invoke creates event with date range`() = runTest {
+        val start = 1672531200000L
+        val end = 1673222400000L
+        coEvery {
+            repository.insertEvent(match { it.date == start && it.endDate == end })
+        } returns 2L
+
+        val result = addEventUseCase("Trip", "", start, end)
+
+        assertEquals(2L, result)
+    }
 }

@@ -9,7 +9,8 @@ val Accent = Color(0xFF3245BF)
 val EventCardBackground = Color(0xFFE9F8FF)
 
 val PastEventCardBackground = Color(0xFFEAE9FF)
-val HolidayEventCardBackground = Color(0xFFE9FFF5)
+val HolidayEventCardBackground = Color(0xFFFDE8E7)
+val HolidayEventContent = Color(0xFFB3261E)
 
 val SecondaryText = Color(0xFF8B96B3)
 val Red = Color(0xFFFF0000)
