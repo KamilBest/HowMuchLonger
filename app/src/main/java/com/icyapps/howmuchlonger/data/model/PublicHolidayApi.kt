@@ -9,4 +9,7 @@ interface PublicHolidayApi {
         @Path("year") year: Int,
         @Path("countryCode") countryCode: String
     ): List<PublicHolidayDto>
+
+    @GET("AvailableCountries")
+    suspend fun getAvailableCountries(): List<AvailableCountryDto>
 } 

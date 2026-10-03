@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,8 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.icyapps.howmuchlonger.domain.model.HolidayCountry
+import java.text.Collator
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.icyapps.howmuchlonger.R
@@ -57,6 +63,7 @@ fun EventListScreen(
     onProcessIntent: (EventListIntent) -> Unit
 ) {
     LaunchedEffect(Unit) { onProcessIntent(EventListIntent.LoadEvents) }
+    var showCountryPicker by rememberSaveable { mutableStateOf(false) }
     BoxWithConstraints {
         val expanded = maxWidth >= 600.dp
         val success = state as? EventListState.Success
@@ -71,6 +78,10 @@ fun EventListScreen(
                     { onProcessIntent(EventListIntent.SwitchTab(EventListTab.UPCOMING)) },
                     { onProcessIntent(EventListIntent.SwitchTab(it)) },
                     { onProcessIntent(EventListIntent.ToggleHolidays) },
+                    {
+                        onProcessIntent(EventListIntent.LoadHolidayCountries)
+                        showCountryPicker = true
+                    },
                     { onProcessIntent(EventListIntent.ToggleCalendar) }
                 )
             },
@@ -100,6 +111,18 @@ fun EventListScreen(
                     { onProcessIntent(EventListIntent.SelectCalendarDate(it)) }
                 )
             }
+        }
+        if (showCountryPicker && success != null) {
+            HolidayCountryDialog(
+                selectedCodes = success.holidayCountryCodes.toSet(),
+                countries = success.holidayCountries,
+                loadFailed = success.holidayCountriesLoadFailed,
+                onConfirm = {
+                    onProcessIntent(EventListIntent.SelectHolidayCountries(it))
+                    showCountryPicker = false
+                },
+                onDismiss = { showCountryPicker = false }
+            )
         }
     }
 }
@@ -160,7 +183,10 @@ private fun EventListContent(
     when (state) {
         EventListState.Loading -> LoadingIndicator()
         is EventListState.Error -> ErrorMessage(state.message)
-        is EventListState.Success -> when {
+        is EventListState.Success -> CompositionLocalProvider(
+            LocalShowHolidayCountry provides (state.holidayCountryCodes.size > 1)
+        ) {
+            when {
             state.showCalendar -> {
                 val calendarEvents = state.allEvents.filter {
                     state.includeHolidays || it.type != EventType.Holiday
@@ -172,9 +198,13 @@ private fun EventListContent(
             }
             state.events.isEmpty() -> EmptyListMessage(state.selectedTab)
             else -> EventsList(state.events, state.selectedTab, onEdit)
+            }
         }
     }
 }
+
+/** Holiday cards name their country only when holidays from several countries are mixed. */
+private val LocalShowHolidayCountry = staticCompositionLocalOf { false }
 
 @Composable
 private fun EmptyListMessage(tab: EventListTab) {
@@ -216,12 +246,12 @@ private fun EventsList(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-                items(events.drop(1), key = { it.id }) { event ->
+                items(events.drop(1), key = ::eventKey) { event ->
                     EventItem(event, onEdit = editableAction(event, onEdit))
                 }
             }
         } else {
-            items(events, key = { it.id }) { event ->
+            items(events, key = ::eventKey) { event ->
                 EventItem(event, onEdit = editableAction(event, onEdit))
             }
         }
@@ -277,7 +307,13 @@ private fun EventItem(
                 )
             }
             if (holiday) {
-                Text(stringResource(R.string.holiday), style = MaterialTheme.typography.labelMedium)
+                val country = event.countryCode
+                    ?.takeIf { LocalShowHolidayCountry.current }
+                    ?.let { "${countryFlag(it)} ${countryDisplayName(it, locale)}".trim() }
+                Text(
+                    if (country != null) "${stringResource(R.string.holiday)} · $country" else stringResource(R.string.holiday),
+                    style = MaterialTheme.typography.labelMedium
+                )
             } else if (event.description.isNotBlank()) {
                 Text(event.description, style = MaterialTheme.typography.bodyMedium)
             }
@@ -590,6 +626,7 @@ private fun EventListTopBar(
     onResetView: () -> Unit,
     onTabSelected: (EventListTab) -> Unit,
     onToggleHolidays: () -> Unit,
+    onOpenCountryPicker: () -> Unit,
     onToggleCalendar: () -> Unit
 ) {
     TopAppBar(
@@ -614,7 +651,9 @@ private fun EventListTopBar(
             if (state != null) {
                 HolidayFilterButton(
                     includeHolidays = state.includeHolidays,
-                    onToggleHolidays = onToggleHolidays
+                    onToggleHolidays = onToggleHolidays,
+                    holidayCountryCodes = state.holidayCountryCodes,
+                    onOpenCountryPicker = onOpenCountryPicker
                 )
                 IconButton(
                     onClick = onToggleCalendar,
@@ -638,7 +677,9 @@ private fun EventListTopBar(
 @Composable
 private fun HolidayFilterButton(
     includeHolidays: Boolean,
-    onToggleHolidays: () -> Unit
+    onToggleHolidays: () -> Unit,
+    holidayCountryCodes: List<String>,
+    onOpenCountryPicker: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -665,9 +706,125 @@ private fun HolidayFilterButton(
                     expanded = false
                 }
             )
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text(stringResource(R.string.holiday_countries))
+                        Text(
+                            countriesSummary(holidayCountryCodes, LocalLocale.current.platformLocale),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 220.dp)
+                        )
+                    }
+                },
+                leadingIcon = { Icon(Icons.Default.Place, contentDescription = null) },
+                onClick = {
+                    onOpenCountryPicker()
+                    expanded = false
+                }
+            )
         }
     }
 }
+
+@Composable
+private fun HolidayCountryDialog(
+    selectedCodes: Set<String>,
+    countries: List<HolidayCountry>,
+    loadFailed: Boolean,
+    onConfirm: (Set<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val locale = LocalLocale.current.platformLocale
+    var query by rememberSaveable { mutableStateOf("") }
+    var checkedCodes by rememberSaveable { mutableStateOf(selectedCodes.toList()) }
+    val sortedCountries = remember(countries, locale) {
+        val collator = Collator.getInstance(locale)
+        // Countries selected when the dialog opened stay on top, so they are easy to find and untick.
+        countries
+            .map { it.code to countryDisplayName(it.code, locale, fallback = it.name) }
+            .sortedWith(compareBy<Pair<String, String>> { it.first !in selectedCodes }.thenBy(collator) { it.second })
+    }
+    val visibleCountries = remember(sortedCountries, query) {
+        sortedCountries.filter { (code, name) ->
+            query.isBlank() || name.contains(query.trim(), ignoreCase = true) || code.equals(query.trim(), ignoreCase = true)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.holiday_countries)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = { Text(stringResource(R.string.search_country)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                when {
+                    countries.isNotEmpty() -> LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                        listItems(visibleCountries, key = { it.first }) { (code, name) ->
+                            val checked = code in checkedCodes
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        checkedCodes = if (checked) checkedCodes - code else checkedCodes + code
+                                    }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(checked = checked, onCheckedChange = null, modifier = Modifier.padding(horizontal = 8.dp))
+                                Text(name, modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                    loadFailed -> Text(
+                        stringResource(R.string.holiday_countries_error),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(vertical = 16.dp)
+                    )
+                    else -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(checkedCodes.toSet()) },
+                enabled = checkedCodes.isNotEmpty()
+            ) { Text(stringResource(R.string.confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        }
+    )
+}
+
+/** Flag emoji built from the two regional indicator symbols matching an ISO country code, e.g. "PL" -> 🇵🇱. */
+internal fun countryFlag(code: String): String {
+    if (code.length != 2 || !code.all { it in 'A'..'Z' || it in 'a'..'z' }) return ""
+    return code.uppercase().map { Character.toChars(REGIONAL_INDICATOR_A + (it - 'A')).concatToString() }.joinToString("")
+}
+
+private const val REGIONAL_INDICATOR_A = 0x1F1E6
+
+private fun countriesSummary(codes: List<String>, locale: Locale): String =
+    codes.map { countryDisplayName(it, locale) }
+        .sortedWith(Collator.getInstance(locale))
+        .joinToString()
+
+private fun countryDisplayName(code: String, locale: Locale, fallback: String = code): String =
+    Locale.Builder().setRegion(code).build().getDisplayCountry(locale)
+        .takeIf { it.isNotBlank() && !it.equals(code, ignoreCase = true) }
+        ?: fallback
 
 @Composable
 private fun AddEventButton(onClick: () -> Unit) = FloatingActionButton(onClick) {
@@ -795,4 +952,10 @@ private fun LandscapePreview() = HowMuchLongerTheme {
         state = EventListState.Success(previewEvents(), allEvents = previewEvents(), showCalendar = true),
         onProcessIntent = {}
     )
+}
+
+/** Stable list key that stays unique even when holidays from several countries share a date. */
+internal fun eventKey(event: Event): String = when (event.type) {
+    EventType.Normal -> "event-${event.id}"
+    EventType.Holiday -> "holiday-${event.countryCode}-${event.date}-${event.name}"
 }

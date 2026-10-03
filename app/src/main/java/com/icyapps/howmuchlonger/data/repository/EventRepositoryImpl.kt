@@ -8,6 +8,7 @@ import com.icyapps.howmuchlonger.data.source.PublicHolidayDataSource
 import com.icyapps.howmuchlonger.data.store.PublicHolidayDataStore
 import com.icyapps.howmuchlonger.domain.model.Event
 import com.icyapps.howmuchlonger.domain.model.EventType
+import com.icyapps.howmuchlonger.domain.model.HolidayCountry
 import com.icyapps.howmuchlonger.domain.repository.EventRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -47,7 +48,7 @@ class EventRepositoryImpl @Inject constructor(
 
     private suspend fun getHolidays(year: Int, countryCode: String): Flow<List<Event>> {
         return flow {
-            val normalizedCountryCode = countryCode.uppercase().takeIf { it.length == 2 } ?: "PL"
+            val normalizedCountryCode = countryCode.uppercase().takeIf { it.length == 2 } ?: HolidayCountry.DEFAULT_CODE
             val cacheKey = HolidayCacheKey(year, normalizedCountryCode)
             holidayMemoryCache[cacheKey]?.let { cached ->
                 emit(cached)
@@ -96,10 +97,12 @@ class EventRepositoryImpl @Inject constructor(
                         countryCode = cacheKey.countryCode
                     )
                 }
-            withContext(Dispatchers.IO) {
+            // Read the rows back so holidays carry the ids Room assigned instead of the default 0.
+            val stored = withContext(Dispatchers.IO) {
                 publicHolidayDataStore.insertHolidays(entities)
+                publicHolidayDataStore.getHolidaysBetween(start, endExclusive, cacheKey.countryCode)
             }
-            entities.map { it.toDomainModel() }.also {
+            stored.map { it.toDomainModel() }.also {
                 holidayMemoryCache[cacheKey] = it
             }
         } catch (error: Exception) {

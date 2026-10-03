@@ -11,4 +11,6 @@ sealed class EventListIntent {
     data object ToggleCalendar : EventListIntent()
     data class ChangeCalendarMonth(val months: Long) : EventListIntent()
     data class SelectCalendarDate(val date: LocalDate) : EventListIntent()
+    data object LoadHolidayCountries : EventListIntent()
+    data class SelectHolidayCountries(val countryCodes: Set<String>) : EventListIntent()
 }

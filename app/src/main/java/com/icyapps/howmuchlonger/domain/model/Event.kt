@@ -11,5 +11,6 @@ data class Event(
     val description: String,
     val date: Long,
     val type: EventType = EventType.Normal,
-    val endDate: Long? = null
+    val endDate: Long? = null,
+    val countryCode: String? = null
 )

@@ -3,6 +3,12 @@ package com.icyapps.howmuchlonger.ui.screen.eventlist
 import com.icyapps.howmuchlonger.MainDispatcherRule
 import com.icyapps.howmuchlonger.domain.usecase.GetEventsUseCase
 import com.icyapps.howmuchlonger.domain.usecase.DeleteEventUseCase
+import com.icyapps.howmuchlonger.domain.usecase.GetAvailableHolidayCountriesUseCase
+import com.icyapps.howmuchlonger.domain.usecase.GetHolidayCountriesUseCase
+import com.icyapps.howmuchlonger.domain.usecase.SetHolidayCountriesUseCase
+import com.icyapps.howmuchlonger.domain.model.HolidayCountry
+import io.mockk.every
+import io.mockk.verify
 import com.icyapps.howmuchlonger.ui.screen.eventlist.intent.EventListIntent
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListState
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
@@ -31,13 +37,26 @@ class EventListViewModelTest {
 
     private lateinit var getEventsUseCase: GetEventsUseCase
     private lateinit var deleteEventUseCase: DeleteEventUseCase
+    private lateinit var getHolidayCountriesUseCase: GetHolidayCountriesUseCase
+    private lateinit var getAvailableHolidayCountriesUseCase: GetAvailableHolidayCountriesUseCase
+    private lateinit var setHolidayCountriesUseCase: SetHolidayCountriesUseCase
     private lateinit var viewModel: EventListViewModel
 
     @Before
     fun setup() {
         getEventsUseCase = mockk()
         deleteEventUseCase = mockk()
-        viewModel = EventListViewModel(getEventsUseCase, deleteEventUseCase)
+        getHolidayCountriesUseCase = mockk()
+        getAvailableHolidayCountriesUseCase = mockk()
+        setHolidayCountriesUseCase = mockk(relaxed = true)
+        coEvery { getHolidayCountriesUseCase() } returns listOf("PL")
+        viewModel = EventListViewModel(
+            getEventsUseCase,
+            deleteEventUseCase,
+            getHolidayCountriesUseCase,
+            getAvailableHolidayCountriesUseCase,
+            setHolidayCountriesUseCase
+        )
     }
 
     @Test
@@ -397,6 +416,85 @@ class EventListViewModelTest {
         viewModel.processIntent(EventListIntent.DeleteEvent(999L))
 
         coVerify(exactly = 0) { deleteEventUseCase(any()) }
+    }
+
+    @Test
+    fun `holidays are loaded for the resolved country`() = runTest {
+        coEvery { getHolidayCountriesUseCase() } returns listOf("US")
+        coEvery { getEventsUseCase(any(), any(), any()) } returns flowOf(emptyList())
+
+        viewModel.processIntent(EventListIntent.LoadEvents)
+
+        coVerify { getEventsUseCase(LocalDate.now().year, "US", true) }
+        assertEquals(listOf("US"), (viewModel.state.value as EventListState.Success).holidayCountryCodes)
+    }
+
+    @Test
+    fun `selecting holiday countries saves them and reloads holidays for each`() = runTest {
+        coEvery { getEventsUseCase(any(), any(), any()) } returns flowOf(emptyList())
+        viewModel.processIntent(EventListIntent.LoadEvents)
+        val selection = setOf("DE", "PL")
+        every { setHolidayCountriesUseCase(selection) } answers {
+            coEvery { getHolidayCountriesUseCase() } returns listOf("DE", "PL")
+        }
+
+        viewModel.processIntent(EventListIntent.SelectHolidayCountries(selection))
+
+        verify { setHolidayCountriesUseCase(selection) }
+        coVerify { getEventsUseCase(LocalDate.now().year, "DE", true) }
+        coVerify { getEventsUseCase(LocalDate.now().year + 1, "DE", true) }
+        assertEquals(listOf("DE", "PL"), (viewModel.state.value as EventListState.Success).holidayCountryCodes)
+    }
+
+    @Test
+    fun `empty holiday country selection is ignored`() = runTest {
+        coEvery { getEventsUseCase(any(), any(), any()) } returns flowOf(emptyList())
+        viewModel.processIntent(EventListIntent.LoadEvents)
+
+        viewModel.processIntent(EventListIntent.SelectHolidayCountries(emptySet()))
+
+        verify(exactly = 0) { setHolidayCountriesUseCase(any()) }
+    }
+
+    @Test
+    fun `holidays from several countries are merged and kept per country`() = runTest {
+        val date = System.currentTimeMillis() + 20_000
+        val polish = Event(2L, "New Year", "", date, EventType.Holiday, countryCode = "PL")
+        val german = Event(3L, "New Year", "", date, EventType.Holiday, countryCode = "DE")
+        coEvery { getHolidayCountriesUseCase() } returns listOf("DE", "PL")
+        coEvery { getEventsUseCase(any(), "PL", any()) } returns flowOf(listOf(polish))
+        coEvery { getEventsUseCase(any(), "DE", any()) } returns flowOf(listOf(german))
+
+        viewModel.processIntent(EventListIntent.LoadEvents)
+
+        val events = (viewModel.state.value as EventListState.Success).allEvents
+        assertEquals(setOf("PL", "DE"), events.mapNotNull { it.countryCode }.toSet())
+        assertEquals(2, events.size)
+    }
+
+    @Test
+    fun `loading holiday countries stores them in state`() = runTest {
+        val countries = listOf(HolidayCountry("PL", "Poland"), HolidayCountry("US", "United States"))
+        coEvery { getEventsUseCase(any(), any(), any()) } returns flowOf(emptyList())
+        coEvery { getAvailableHolidayCountriesUseCase() } returns countries
+        viewModel.processIntent(EventListIntent.LoadEvents)
+
+        viewModel.processIntent(EventListIntent.LoadHolidayCountries)
+
+        val state = viewModel.state.value as EventListState.Success
+        assertEquals(countries, state.holidayCountries)
+        assertFalse(state.holidayCountriesLoadFailed)
+    }
+
+    @Test
+    fun `failing to load holiday countries is reported in state`() = runTest {
+        coEvery { getEventsUseCase(any(), any(), any()) } returns flowOf(emptyList())
+        coEvery { getAvailableHolidayCountriesUseCase() } returns emptyList()
+        viewModel.processIntent(EventListIntent.LoadEvents)
+
+        viewModel.processIntent(EventListIntent.LoadHolidayCountries)
+
+        assertTrue((viewModel.state.value as EventListState.Success).holidayCountriesLoadFailed)
     }
 
     @Test

@@ -28,7 +28,8 @@ fun EventEntity.toDomainModel(): Event {
         description = description,
         date = date,
         type = type,
-        endDate = endDate
+        endDate = endDate,
+        countryCode = countryCode
     )
 }
 
@@ -39,6 +40,7 @@ fun Event.toEntity(): EventEntity {
         description = description,
         date = date,
         type = type,
-        endDate = endDate
+        endDate = endDate,
+        countryCode = countryCode
     )
 }

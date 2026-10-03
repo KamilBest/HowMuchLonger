@@ -11,6 +11,12 @@ import com.icyapps.howmuchlonger.data.source.PublicHolidayDataSource
 import com.icyapps.howmuchlonger.data.source.PublicHolidayApiDataSource
 import com.icyapps.howmuchlonger.data.store.PublicHolidayDataStore
 import com.icyapps.howmuchlonger.data.store.PublicHolidayRoomDataStore
+import com.icyapps.howmuchlonger.data.store.HolidayCountryStore
+import com.icyapps.howmuchlonger.data.store.HolidayCountryPreferencesStore
+import com.icyapps.howmuchlonger.data.repository.HolidayCountryRepositoryImpl
+import com.icyapps.howmuchlonger.data.locale.DeviceLanguageCountryProvider
+import com.icyapps.howmuchlonger.domain.repository.HolidayCountryRepository
+import com.icyapps.howmuchlonger.domain.repository.LanguageCountryProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -64,5 +70,26 @@ object AppModule {
     @Singleton
     fun providePublicHolidayDataStore(eventDao: EventDao): PublicHolidayDataStore {
         return PublicHolidayRoomDataStore(eventDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHolidayCountryStore(@ApplicationContext context: Context): HolidayCountryStore {
+        return HolidayCountryPreferencesStore(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHolidayCountryRepository(
+        publicHolidayDataSource: PublicHolidayDataSource,
+        holidayCountryStore: HolidayCountryStore
+    ): HolidayCountryRepository {
+        return HolidayCountryRepositoryImpl(publicHolidayDataSource, holidayCountryStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLanguageCountryProvider(): LanguageCountryProvider {
+        return DeviceLanguageCountryProvider()
     }
 }

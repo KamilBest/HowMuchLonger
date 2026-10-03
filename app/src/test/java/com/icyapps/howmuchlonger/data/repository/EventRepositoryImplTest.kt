@@ -182,7 +182,7 @@ class EventRepositoryImplTest {
     @Test
     fun `getHolidays fetches from API and caches if not present`() = runTest {
         every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        storeHolidaysInMemory()
         coEvery { publicHolidayDataSource.getPublicHolidays(any(), any()) } returns listOf(
             com.icyapps.howmuchlonger.data.model.PublicHolidayDto(
                 date = "2023-01-01",
@@ -196,7 +196,6 @@ class EventRepositoryImplTest {
                 types = listOf("Public")
             )
         )
-        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
         val flow = repository.getAllEvents(2023, "PL", true)
         val result = flow.first()
         assertEquals(EventType.Holiday, result.first().type)
@@ -322,26 +321,25 @@ class EventRepositoryImplTest {
     }
 
     @Test
-    fun `invalid country code falls back to Poland`() = runTest {
+    fun `invalid country code falls back to United States`() = runTest {
         every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
-        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns emptyList()
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "US") } returns emptyList()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "US") } returns emptyList()
         coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
 
         repository.getAllEvents(2027, "POL", true).first()
 
-        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "PL") }
+        coVerify(exactly = 1) { publicHolidayDataSource.getPublicHolidays(2027, "US") }
     }
 
     @Test
     fun `regional holidays are excluded from API result`() = runTest {
         every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        storeHolidaysInMemory()
         coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(
             holidayDto("2027-01-01", "Global holiday", global = true),
             holidayDto("2027-02-01", "Regional holiday", global = false)
         )
-        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
 
         val result = repository.getAllEvents(2027, "PL", true).first()
 
@@ -356,10 +354,9 @@ class EventRepositoryImplTest {
     @Test
     fun `duplicate holidays from API are stored once`() = runTest {
         every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        storeHolidaysInMemory()
         val duplicate = holidayDto("2027-01-01", "Nowy Rok")
         coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(duplicate, duplicate)
-        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
 
         val result = repository.getAllEvents(2027, "PL", true).first()
 
@@ -370,10 +367,9 @@ class EventRepositoryImplTest {
     @Test
     fun `API failure is not cached and next request retries`() = runTest {
         every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
-        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), "PL") } returns emptyList()
+        storeHolidaysInMemory()
         coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } throws
             RuntimeException("offline") andThen listOf(holidayDto("2027-01-01", "Nowy Rok"))
-        coEvery { publicHolidayDataStore.insertHolidays(any()) } returns Unit
 
         val first = repository.getAllEvents(2027, "PL", true).first()
         val second = repository.getAllEvents(2027, "PL", true).first()
@@ -415,6 +411,37 @@ class EventRepositoryImplTest {
         val result = repository.getAllEvents(2027, "PL", true).first()
 
         assertEquals(listOf("Holiday", "Test Event"), result.map { it.name })
+    }
+
+    @Test
+    fun `downloaded holidays get unique ids from storage`() = runTest {
+        every { eventDataStore.getAllEvents() } returns flowOf(emptyList())
+        storeHolidaysInMemory()
+        coEvery { publicHolidayDataSource.getPublicHolidays(2027, "PL") } returns listOf(
+            holidayDto("2027-01-01", "Nowy Rok"),
+            holidayDto("2027-05-01", "Święto Pracy"),
+            holidayDto("2027-05-03", "Święto Konstytucji")
+        )
+
+        val result = repository.getAllEvents(2027, "PL", true).first()
+
+        assertEquals(3, result.size)
+        assertEquals(3, result.map { it.id }.distinct().size)
+        assertTrue(result.none { it.id == 0L })
+    }
+
+    /** Makes the holiday store behave like Room: inserted rows get ids and can be queried back. */
+    private fun storeHolidaysInMemory() {
+        val stored = mutableListOf<EventEntity>()
+        coEvery { publicHolidayDataStore.insertHolidays(any()) } answers {
+            firstArg<List<EventEntity>>().forEach { stored += it.copy(id = stored.size + 100L) }
+        }
+        coEvery { publicHolidayDataStore.getHolidaysBetween(any(), any(), any()) } answers {
+            val start = firstArg<Long>()
+            val endExclusive = secondArg<Long>()
+            val countryCode = thirdArg<String>()
+            stored.filter { it.countryCode == countryCode && it.date >= start && it.date < endExclusive }
+        }
     }
 
     private fun holidayDto(

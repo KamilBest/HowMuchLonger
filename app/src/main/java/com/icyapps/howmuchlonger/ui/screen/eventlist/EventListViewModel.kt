@@ -16,16 +16,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
-import java.util.Locale
 import java.time.YearMonth
 import java.time.LocalDate
 import com.icyapps.howmuchlonger.domain.usecase.GetEventsUseCase
+import com.icyapps.howmuchlonger.domain.usecase.GetAvailableHolidayCountriesUseCase
+import com.icyapps.howmuchlonger.domain.usecase.GetHolidayCountriesUseCase
+import com.icyapps.howmuchlonger.domain.usecase.SetHolidayCountriesUseCase
 import com.icyapps.howmuchlonger.ui.screen.eventlist.model.EventListTab
 
 @HiltViewModel
 class EventListViewModel @Inject constructor(
     private val getEventsUseCase: GetEventsUseCase,
-    private val deleteEventUseCase: DeleteEventUseCase
+    private val deleteEventUseCase: DeleteEventUseCase,
+    private val getHolidayCountriesUseCase: GetHolidayCountriesUseCase,
+    private val getAvailableHolidayCountriesUseCase: GetAvailableHolidayCountriesUseCase,
+    private val setHolidayCountriesUseCase: SetHolidayCountriesUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<EventListState>(EventListState.Loading)
@@ -41,6 +46,8 @@ class EventListViewModel @Inject constructor(
             EventListIntent.ToggleCalendar -> toggleCalendar()
             is EventListIntent.ChangeCalendarMonth -> changeCalendarMonth(intent.months)
             is EventListIntent.SelectCalendarDate -> selectCalendarDate(intent.date)
+            EventListIntent.LoadHolidayCountries -> loadHolidayCountries()
+            is EventListIntent.SelectHolidayCountries -> selectHolidayCountries(intent.countryCodes)
         }
     }
 
@@ -50,17 +57,15 @@ class EventListViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             try {
-                val countryCode = Locale.getDefault().country.ifBlank { "PL" }
+                val countryCodes = getHolidayCountriesUseCase()
                 val selectedTab = previousState?.selectedTab ?: EventListTab.UPCOMING
                 val includeHolidays = previousState?.includeHolidays ?: true
                 val calendarMonth = previousState?.calendarMonth ?: YearMonth.now()
                 val currentYear = LocalDate.now().year
-                combine(
-                    getEventsUseCase(currentYear, countryCode, true),
-                    getEventsUseCase(currentYear + 1, countryCode, true)
-                ) { currentYearEvents, nextYearEvents ->
-                    mergeEvents(currentYearEvents, nextYearEvents)
-                }.collect { events ->
+                val eventFlows = countryCodes.flatMap { countryCode ->
+                    listOf(currentYear, currentYear + 1).map { year -> getEventsUseCase(year, countryCode, true) }
+                }
+                combine(eventFlows) { eventLists -> mergeEvents(eventLists.flatMap { it }) }.collect { events ->
                     val latestState = _state.value as? EventListState.Success
                     val currentTab = latestState?.selectedTab ?: selectedTab
                     val currentIncludeHolidays = latestState?.includeHolidays ?: includeHolidays
@@ -77,7 +82,12 @@ class EventListViewModel @Inject constructor(
                         allEvents = events,
                         calendarMonth = currentCalendarMonth,
                         selectedCalendarDate = selectedCalendarDate,
-                        showCalendar = showCalendar
+                        showCalendar = showCalendar,
+                        holidayCountryCodes = countryCodes,
+                        holidayCountries = latestState?.holidayCountries ?: previousState?.holidayCountries.orEmpty(),
+                        holidayCountriesLoadFailed = latestState?.holidayCountriesLoadFailed
+                            ?: previousState?.holidayCountriesLoadFailed
+                            ?: false
                     )
                 }
             } catch (error: CancellationException) {
@@ -107,6 +117,28 @@ class EventListViewModel @Inject constructor(
             includeHolidays = includeHolidays,
             events = filterEvents(currentState.selectedTab, currentState.allEvents, includeHolidays)
         )
+    }
+
+    private fun loadHolidayCountries() {
+        val currentState = _state.value as? EventListState.Success ?: return
+        if (currentState.holidayCountries.isNotEmpty()) return
+        _state.value = currentState.copy(holidayCountriesLoadFailed = false)
+        viewModelScope.launch {
+            val countries = getAvailableHolidayCountriesUseCase()
+            val latestState = _state.value as? EventListState.Success ?: return@launch
+            _state.value = latestState.copy(
+                holidayCountries = countries,
+                holidayCountriesLoadFailed = countries.isEmpty()
+            )
+        }
+    }
+
+    private fun selectHolidayCountries(countryCodes: Set<String>) {
+        val currentState = _state.value as? EventListState.Success ?: return
+        if (countryCodes.isEmpty()) return
+        // Persist even an unchanged selection, so an explicit choice no longer follows the device language.
+        setHolidayCountriesUseCase(countryCodes)
+        if (currentState.holidayCountryCodes.toSet() != countryCodes) loadEvents()
     }
 
     private fun toggleCalendar() {
@@ -153,15 +185,16 @@ class EventListViewModel @Inject constructor(
         }
     }
 
-    private fun mergeEvents(currentYearEvents: List<Event>, nextYearEvents: List<Event>): List<Event> =
-        (currentYearEvents + nextYearEvents)
+    private fun mergeEvents(events: List<Event>): List<Event> =
+        events
             .distinctBy { event ->
                 when (event.type) {
                     EventType.Normal -> EventIdentity(type = event.type, id = event.id)
                     EventType.Holiday -> EventIdentity(
                         type = event.type,
                         date = event.date,
-                        name = event.name
+                        name = event.name,
+                        countryCode = event.countryCode
                     )
                 }
             }
@@ -207,5 +240,6 @@ private data class EventIdentity(
     val type: EventType,
     val id: Long = 0,
     val date: Long = 0,
-    val name: String = ""
+    val name: String = "",
+    val countryCode: String? = null
 )
