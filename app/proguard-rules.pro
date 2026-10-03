@@ -19,3 +19,20 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Keep line numbers for readable Play Console crash reports
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Gson (reflection-based) needs generic signatures and field names of DTOs
+-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod
+-keep class com.icyapps.howmuchlonger.data.model.*Dto { *; }
+
+# Retrofit service interfaces
+-keep,allowobfuscation interface com.icyapps.howmuchlonger.data.model.*Api
+
+# Strip verbose logging from release builds
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

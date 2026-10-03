@@ -7,6 +7,10 @@ plugins {
     jacoco
 }
 
+val versionMajor = 1
+val versionMinor = 0
+val versionPatch = 1
+
 android {
     namespace = "com.icyapps.howmuchlonger"
     compileSdk = 37
@@ -15,18 +19,24 @@ android {
         applicationId = "com.icyapps.howmuchlonger"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = versionMajor * 10000 + versionMinor * 100 + versionPatch
+        versionName = "${versionMajor}.${versionMinor}.${versionPatch}"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         debug {
+            isMinifyEnabled = false
             enableUnitTestCoverage = true
         }
         release {
-            isMinifyEnabled = false
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
